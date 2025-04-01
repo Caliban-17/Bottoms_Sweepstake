@@ -25,42 +25,55 @@ with col1:
 with col2:
     st.success("**Jackpot:** £25 🤑")
 
-# Function to scrape Premier League table (simplified - using default data)
+# Function to get current Premier League standings
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def get_premier_league_standings():
-    # For now, we'll use default data since web scraping is proving challenging
-    # In a production app, you'd implement proper scraping or use an API
-    standings_data = {
-        "Position": [11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
-        "Team": ["Brighton", "Bournemouth", "Fulham", "Wolves", "Everton", "Brentford", "Forest", "Southampton", "Leicester", "Ipswich"],
-        "Points_Value": [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-    }
-    return pd.DataFrame(standings_data)
+    try:
+        # Current Premier League standings data
+        # In a production app, this would be scraped or fetched from an API
+        standings_data = {
+            "Position": list(range(1, 21)),
+            "Team": [
+                "Liverpool", "Arsenal", "Nottingham Forest", "Chelsea", 
+                "Manchester City", "Newcastle United", "Brighton & Hove Albion", "Fulham", 
+                "Aston Villa", "Bournemouth", "Brentford", "Crystal Palace", 
+                "Manchester United", "Tottenham Hotspur", "Everton", "West Ham United", 
+                "Wolverhampton Wanderers", "Ipswich Town", "Leicester City", "Southampton"
+            ],
+            "Points_League": [70, 58, 54, 49, 48, 47, 47, 45, 45, 44, 41, 39, 37, 34, 34, 34, 26, 17, 17, 9]
+        }
+        
+        # Add points based on position (reverse order: 1st = 20pts, 20th = 1pt)
+        standings_data["Points_Value"] = [21 - pos for pos in standings_data["Position"]]
+        
+        return pd.DataFrame(standings_data)
+    except Exception as e:
+        st.error(f"Error retrieving Premier League data: {e}")
+        # Fallback data
+        return pd.DataFrame({
+            "Position": list(range(1, 21)),
+            "Team": [
+                "Liverpool", "Arsenal", "Nottingham Forest", "Chelsea", 
+                "Manchester City", "Newcastle United", "Brighton & Hove Albion", "Fulham", 
+                "Aston Villa", "Bournemouth", "Brentford", "Crystal Palace", 
+                "Manchester United", "Tottenham Hotspur", "Everton", "West Ham United", 
+                "Wolverhampton Wanderers", "Ipswich Town", "Leicester City", "Southampton"
+            ],
+            "Points_League": [70, 58, 54, 49, 48, 47, 47, 45, 45, 44, 41, 39, 37, 34, 34, 34, 26, 17, 17, 9],
+            "Points_Value": list(range(20, 0, -1))  # 20 points for 1st, 1 point for 20th
+        })
 
 # Get standings data
 standings_df = get_premier_league_standings()
 
-# Create player picks data
+# Create player picks data for the 24/25 season
 player_picks = {
     "Player": ["Sean", "Sean", "Dom", "Dom", "Harry", "Harry", "Chris", "Chris", "Adam", "Adam"],
-    "Team": ["Fulham", "Everton", "Bournemouth", "Ipswich", "Forest", "Wolves", "Brentford", "Leicester", "Brighton", "Southampton"]
+    "Team": ["Fulham", "Everton", "Bournemouth", "Ipswich Town", "Nottingham Forest", "Wolverhampton Wanderers", 
+             "Brentford", "Leicester City", "Brighton & Hove Albion", "Southampton"]
 }
 
 picks_df = pd.DataFrame(player_picks)
-
-# Standardize team names if needed
-def standardize_team_names(df):
-    name_mapping = {
-        "Nottingham Forest": "Forest",
-        "Wolverhampton Wanderers": "Wolves"
-    }
-    
-    if "Team" in df.columns:
-        df["Team"] = df["Team"].apply(lambda x: name_mapping.get(x, x))
-    
-    return df
-
-standings_df = standardize_team_names(standings_df)
 
 # Merge with standings to get points
 merged_df = pd.merge(picks_df, standings_df, on="Team", how="left")
@@ -70,15 +83,15 @@ player_totals = merged_df.groupby("Player")["Points_Value"].sum().reset_index()
 player_totals = player_totals.sort_values("Points_Value", ascending=False)
 
 # Display data source info
-st.caption("Using Premier League 2024/25 bottom 10 positions for points calculation")
+st.caption("Using Premier League 2024/25 positions for points calculation")
 
 # Add a toggle for advanced details
-with st.expander("Team Points Assignment Details"):
+with st.expander("Points Assignment Details"):
     st.write("""
     Each team's position in the Premier League table determines its points value:
-    - 11th place: 10 points
-    - 12th place: 9 points
-    - 13th place: 8 points
+    - 1st place: 20 points
+    - 2nd place: 19 points
+    - 3rd place: 18 points
     - ...and so on down to...
     - 20th place: 1 point
     
@@ -86,13 +99,16 @@ with st.expander("Team Points Assignment Details"):
     """)
     
     # Show the current standings table
-    st.subheader("Current Premier League Positions (11-20)")
+    st.subheader("Current Premier League Positions")
+    display_standings = standings_df[["Position", "Team", "Points_Value"]].rename(
+        columns={"Points_Value": "Position Points Worth"}
+    )
     st.dataframe(
-        standings_df,
+        display_standings,
         column_config={
             "Position": st.column_config.NumberColumn(format="%d"),
             "Team": "Team",
-            "Points_Value": st.column_config.NumberColumn("Points Worth", format="%d points")
+            "Position Points Worth": st.column_config.NumberColumn(format="%d points")
         },
         hide_index=True
     )
@@ -104,25 +120,29 @@ for i, player in enumerate(["Sean", "Dom", "Harry", "Chris", "Adam"]):
     with cols[i]:
         st.subheader(player)
         player_data = merged_df[merged_df["Player"] == player]
+        total_points = player_data["Points_Value"].sum()
+        
         for _, row in player_data.iterrows():
             team = row["Team"]
             position = row["Position"]
             points = row["Points_Value"]
             
-            # Calculate background color based on points
-            # Higher points get deeper green
-            bg_color = f"rgba(0, {min(200, 100 + points * 10)}, 0, 0.2)"
+            # Calculate background color based on points (higher = better)
+            intensity = int(min(255, 100 + (points / 20) * 155))
+            bg_color = f"rgba(0, {intensity}, 0, 0.2)"
             
             st.markdown(
                 f"""
                 <div style="padding: 10px; margin-bottom: 10px; background-color: {bg_color}; border-radius: 5px;">
                     <b>{team}</b><br>
-                    Position: {position}th<br>
-                    Points: {points}
+                    Position: {int(position)}<br>
+                    Points: {int(points)}
                 </div>
                 """, 
                 unsafe_allow_html=True
             )
+        
+        st.markdown(f"**Total: {total_points} points**")
 
 # Display leaderboard
 st.header("Sweepstake Leaderboard")
@@ -141,7 +161,7 @@ chart = alt.Chart(player_totals).mark_bar().encode(
 st.altair_chart(chart, use_container_width=True)
 
 # Create a leaderboard table
-st.subheader("Final Standings")
+st.subheader("Current Standings")
 leaderboard_df = player_totals.copy()
 leaderboard_df["Rank"] = range(1, len(leaderboard_df) + 1)
 leaderboard_df = leaderboard_df[["Rank", "Player", "Points_Value"]]
@@ -168,73 +188,80 @@ st.write(f"### 🏆 Current Leader{'s' if len(leaders) > 1 else ''}: {leaders_te
 st.header("What-If Scenario Builder")
 st.write("See how the standings would change if teams moved positions")
 
-# Create columns for the teams
-col1, col2 = st.columns(2)
+# Create columns for team movement
+team_columns = st.columns(2)
+
+# Get player teams
+player_teams = sorted(picks_df["Team"].unique())
 
 # Store modified positions
 modified_positions = {}
 
-# First column of teams (11-15)
-with col1:
-    st.subheader("Teams 11-15")
-    for pos in range(11, 16):
-        team = standings_df[standings_df["Position"] == pos]["Team"].values[0]
+# First column of teams
+with team_columns[0]:
+    st.subheader("First 5 Teams")
+    for i, team in enumerate(player_teams[:5]):
+        current_pos = standings_df[standings_df["Team"] == team]["Position"].values[0]
         modified_positions[team] = st.selectbox(
             f"{team} position:", 
-            options=list(range(11, 21)),
-            index=pos - 11,
+            options=list(range(1, 21)),
+            index=int(current_pos) - 1,
             key=f"pos_{team}"
         )
 
-# Second column of teams (16-20)
-with col2:
-    st.subheader("Teams 16-20")
-    for pos in range(16, 21):
-        team = standings_df[standings_df["Position"] == pos]["Team"].values[0]
+# Second column of teams
+with team_columns[1]:
+    st.subheader("Next 5 Teams")
+    for i, team in enumerate(player_teams[5:]):
+        current_pos = standings_df[standings_df["Team"] == team]["Position"].values[0]
         modified_positions[team] = st.selectbox(
             f"{team} position:", 
-            options=list(range(11, 21)),
-            index=pos - 11,
+            options=list(range(1, 21)),
+            index=int(current_pos) - 1,
             key=f"pos_{team}"
         )
 
 # Calculate button
 if st.button("Calculate New Standings"):
-    # Validate positions (each position should be used exactly once)
+    # Check for position conflicts
     position_counts = {}
     for pos in modified_positions.values():
         position_counts[pos] = position_counts.get(pos, 0) + 1
     
-    if any(count > 1 for count in position_counts.values()):
-        st.error("⚠️ Each position must be unique. Please ensure no position is used more than once.")
+    position_conflicts = [pos for pos, count in position_counts.items() if count > 1]
+    
+    if position_conflicts:
+        st.error(f"⚠️ Position conflict: Position {', '.join(map(str, position_conflicts))} used multiple times")
     else:
         # Create a new dataframe with modified positions
-        new_standings = []
-        for team, position in modified_positions.items():
-            new_standings.append({
-                "Team": team,
-                "Position": position,
-                "Points_Value": 21 - position  # Calculate points value
-            })
+        new_standings = standings_df.copy()
         
-        new_standings_df = pd.DataFrame(new_standings)
+        # Update positions for player teams
+        for team, new_pos in modified_positions.items():
+            new_standings.loc[new_standings["Team"] == team, "Position"] = new_pos
         
-        # Merge with player picks
-        new_merged_df = pd.merge(picks_df, new_standings_df, on="Team", how="left")
+        # Recalculate points values based on new positions
+        new_standings["Points_Value"] = 21 - new_standings["Position"]
         
-        # Calculate new totals
+        # Sort by position
+        new_standings = new_standings.sort_values("Position")
+        
+        # Calculate new player totals
+        new_merged_df = pd.merge(picks_df, new_standings[["Team", "Position", "Points_Value"]], on="Team", how="left")
         new_player_totals = new_merged_df.groupby("Player")["Points_Value"].sum().reset_index()
         new_player_totals = new_player_totals.sort_values("Points_Value", ascending=False)
         
         # Display results
         st.subheader("New League Table")
-        new_standings_df = new_standings_df.sort_values("Position")
+        display_new_standings = new_standings[["Position", "Team", "Points_Value"]].rename(
+            columns={"Points_Value": "Position Points Worth"}
+        )
         st.dataframe(
-            new_standings_df,
+            display_new_standings,
             column_config={
                 "Position": st.column_config.NumberColumn(format="%d"),
                 "Team": "Team",
-                "Points_Value": st.column_config.NumberColumn("Points Worth", format="%d points")
+                "Position Points Worth": st.column_config.NumberColumn(format="%d points")
             },
             hide_index=True
         )
