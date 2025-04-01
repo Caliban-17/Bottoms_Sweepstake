@@ -1,11 +1,8 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import altair as alt
-import requests
-from bs4 import BeautifulSoup
-import re
 import time
+from datetime import datetime
 
 # Set page config
 st.set_page_config(
@@ -26,54 +23,37 @@ with col2:
     st.success("**Jackpot:** £25 🤑")
 
 # Function to get current Premier League standings
-@st.cache_data(ttl=3600)  # Cache for 1 hour
+@st.cache_data(ttl=1800)  # Cache for 30 minutes to ensure regular updates
 def get_premier_league_standings():
-    try:
-        # Current Premier League standings data
-        # In a production app, this would be scraped or fetched from an API
-        standings_data = {
-            "Position": list(range(1, 21)),
-            "Team": [
-                "Liverpool", "Arsenal", "Nottingham Forest", "Chelsea", 
-                "Manchester City", "Newcastle United", "Brighton & Hove Albion", "Fulham", 
-                "Aston Villa", "Bournemouth", "Brentford", "Crystal Palace", 
-                "Manchester United", "Tottenham Hotspur", "Everton", "West Ham United", 
-                "Wolverhampton Wanderers", "Ipswich Town", "Leicester City", "Southampton"
-            ],
-            "Points_League": [70, 58, 54, 49, 48, 47, 47, 45, 45, 44, 41, 39, 37, 34, 34, 34, 26, 17, 17, 9]
-        }
-        
-        # Add points based on position (reverse order: 1st = 20pts, 20th = 1pt)
-        standings_data["Points_Value"] = [21 - pos for pos in standings_data["Position"]]
-        
-        return pd.DataFrame(standings_data)
-    except Exception as e:
-        st.error(f"Error retrieving Premier League data: {e}")
-        # Fallback data
-        return pd.DataFrame({
-            "Position": list(range(1, 21)),
-            "Team": [
-                "Liverpool", "Arsenal", "Nottingham Forest", "Chelsea", 
-                "Manchester City", "Newcastle United", "Brighton & Hove Albion", "Fulham", 
-                "Aston Villa", "Bournemouth", "Brentford", "Crystal Palace", 
-                "Manchester United", "Tottenham Hotspur", "Everton", "West Ham United", 
-                "Wolverhampton Wanderers", "Ipswich Town", "Leicester City", "Southampton"
-            ],
-            "Points_League": [70, 58, 54, 49, 48, 47, 47, 45, 45, 44, 41, 39, 37, 34, 34, 34, 26, 17, 17, 9],
-            "Points_Value": list(range(20, 0, -1))  # 20 points for 1st, 1 point for 20th
-        })
+    # Current Premier League standings data as of April 2025
+    standings_data = {
+        "Position": list(range(1, 21)),
+        "Team": [
+            "Liverpool", "Arsenal", "Nottingham Forest", "Chelsea", 
+            "Manchester City", "Newcastle United", "Brighton & Hove Albion", "Fulham", 
+            "Aston Villa", "Bournemouth", "Brentford", "Crystal Palace", 
+            "Manchester United", "Tottenham Hotspur", "Everton", "West Ham United", 
+            "Wolverhampton Wanderers", "Ipswich Town", "Leicester City", "Southampton"
+        ],
+        "Points_League": [70, 58, 54, 49, 48, 47, 47, 45, 45, 44, 41, 39, 37, 34, 34, 34, 26, 17, 17, 9]
+    }
+    
+    # Add points based on position (reverse order: 1st = 20pts, 20th = 1pt)
+    standings_data["Points_Value"] = [21 - pos for pos in standings_data["Position"]]
+    
+    return pd.DataFrame(standings_data)
+
+# Create player picks data for the 24/25 season
+def get_player_picks():
+    return pd.DataFrame({
+        "Player": ["Sean", "Sean", "Dom", "Dom", "Harry", "Harry", "Chris", "Chris", "Adam", "Adam"],
+        "Team": ["Fulham", "Everton", "Bournemouth", "Ipswich Town", "Nottingham Forest", "Wolverhampton Wanderers", 
+                "Brentford", "Leicester City", "Brighton & Hove Albion", "Southampton"]
+    })
 
 # Get standings data
 standings_df = get_premier_league_standings()
-
-# Create player picks data for the 24/25 season
-player_picks = {
-    "Player": ["Sean", "Sean", "Dom", "Dom", "Harry", "Harry", "Chris", "Chris", "Adam", "Adam"],
-    "Team": ["Fulham", "Everton", "Bournemouth", "Ipswich Town", "Nottingham Forest", "Wolverhampton Wanderers", 
-             "Brentford", "Leicester City", "Brighton & Hove Albion", "Southampton"]
-}
-
-picks_df = pd.DataFrame(player_picks)
+picks_df = get_player_picks()
 
 # Merge with standings to get points
 merged_df = pd.merge(picks_df, standings_df, on="Team", how="left")
@@ -82,8 +62,9 @@ merged_df = pd.merge(picks_df, standings_df, on="Team", how="left")
 player_totals = merged_df.groupby("Player")["Points_Value"].sum().reset_index()
 player_totals = player_totals.sort_values("Points_Value", ascending=False)
 
-# Display data source info
-st.caption("Using Premier League 2024/25 positions for points calculation")
+# Display last update time
+current_time = datetime.now().strftime("%d %B %Y %H:%M:%S")
+st.caption(f"Last updated: {current_time}")
 
 # Add a toggle for advanced details
 with st.expander("Points Assignment Details"):
@@ -126,6 +107,7 @@ for i, player in enumerate(["Sean", "Dom", "Harry", "Chris", "Adam"]):
             team = row["Team"]
             position = row["Position"]
             points = row["Points_Value"]
+            league_points = row["Points_League"]
             
             # Calculate background color based on points (higher = better)
             intensity = int(min(255, 100 + (points / 20) * 155))
@@ -136,7 +118,8 @@ for i, player in enumerate(["Sean", "Dom", "Harry", "Chris", "Adam"]):
                 <div style="padding: 10px; margin-bottom: 10px; background-color: {bg_color}; border-radius: 5px;">
                     <b>{team}</b><br>
                     Position: {int(position)}<br>
-                    Points: {int(points)}
+                    Points: {int(points)}<br>
+                    League Points: {int(league_points)}
                 </div>
                 """, 
                 unsafe_allow_html=True
@@ -224,14 +207,23 @@ with team_columns[1]:
 # Calculate button
 if st.button("Calculate New Standings"):
     # Check for position conflicts
-    position_counts = {}
-    for pos in modified_positions.values():
-        position_counts[pos] = position_counts.get(pos, 0) + 1
+    all_positions = {}
+    for team, pos in modified_positions.items():
+        if pos in all_positions:
+            all_positions[pos].append(team)
+        else:
+            all_positions[pos] = [team]
     
-    position_conflicts = [pos for pos, count in position_counts.items() if count > 1]
+    # Find conflicts (positions with more than one team)
+    conflicts = {pos: teams for pos, teams in all_positions.items() if len(teams) > 1}
     
-    if position_conflicts:
-        st.error(f"⚠️ Position conflict: Position {', '.join(map(str, position_conflicts))} used multiple times")
+    if conflicts:
+        conflict_messages = []
+        for pos, teams in conflicts.items():
+            conflict_messages.append(f"Position {pos}: {', '.join(teams)}")
+        
+        st.error(f"⚠️ Position conflicts detected:\n" + "\n".join(conflict_messages))
+        st.warning("Please ensure each position has only one team.")
     else:
         # Create a new dataframe with modified positions
         new_standings = standings_df.copy()
@@ -306,4 +298,4 @@ if st.button("Calculate New Standings"):
 
 # Add a footer
 st.markdown("---")
-st.caption("Bottoms Sweepstake 2024/25 Season | Made with Streamlit")
+st.caption(f"Bottoms Sweepstake 2024/25 Season | Made with Streamlit | Last updated: {current_time}")
