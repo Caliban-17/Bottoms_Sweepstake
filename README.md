@@ -1,35 +1,23 @@
 # Premier League Bottoms Sweepstake
 
-A Streamlit application for tracking a Premier League "Bottoms Sweepstake" - a friendly competition where participants are only assigned (randomly) teams who to finished in the bottom half of the table the previous season.
+A Streamlit application for tracking a Premier League "Bottoms Sweepstake" for the 24/25 season.
 
 ## About the Sweepstake
 
-In this sweepstake:
-- Each player is assigned two teams from the Premier League
-- Points are awarded based on final league position (11th-20th)
-- The player with the most points at the end of the season wins the £25 jackpot!
-
-### Scoring System
-
-Points are awarded as follows:
-- 11th place: 10 points
-- 12th place: 9 points
-- 13th place: 8 points
-- 14th place: 7 points 
-- 15th place: 6 points
-- 16th place: 5 points
-- 17th place: 4 points
-- 18th place: 3 points
-- 19th place: 2 points
-- 20th place: 1 point
+A friendly competition with the following rules:
+- 5 Participants: Sean, Dom, Harry, Chris, Adam.
+- Each player is assigned two teams (see below).
+- **Scoring:** Points are awarded based on the *inverse* of the final Premier League position. The team finishing 1st gets 20 points, 2nd gets 19 points, ..., down to 20th place getting 1 point.
+- Each player's score is the sum of the points from their two assigned teams.
+- The player with the **most points** at the end of the season wins the £25 jackpot! 🤑
 
 ## Features
 
-- **Live Standings Tracker**: View current positions of all teams and calculated player scores
-- **Visual Leaderboard**: Interactive bar chart showing player rankings
-- **Team Selection Cards**: Visual display of each player's team picks with position and points
-- **What-If Scenario Builder**: Simulate league position changes to see how they would affect the sweepstake standings
-- **Responsive Design**: Works well on desktop and mobile devices
+- **Live Standings Tracker**: Fetches current Premier League standings from premierleague.com (with a 30-minute cache) and calculates player scores based on the inverse position points system. Includes fallback static data if scraping fails.
+- **Visual Leaderboard**: Interactive bar chart showing player rankings based on their current total points.
+- **Team Selection Cards**: Visual display of each player's team picks with current league position, league points, and calculated sweepstake points.
+- **What-If Scenario Builder**: Simulate how changing the positions of the selected teams would affect the *sweepstake points* and the overall leaderboard (note: this only recalculates points for the selected teams, it doesn't simulate the full league table).
+- **Responsive Design**: Works on desktop and mobile devices.
 
 ## Getting Started
 
@@ -40,82 +28,54 @@ Points are awarded as follows:
 
 ### Installation
 
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/yourusername/bottoms-sweepstake.git
-   cd bottoms-sweepstake
-   ```
+1.  Clone this repository:
+    ```bash
+    git clone https://github.com/yourusername/bottoms-sweepstake.git # Replace with your actual repo URL
+    cd bottoms-sweepstake
+    ```
 
-2. Install the required packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
-   
-   Or install them manually:
-   ```bash
-   pip install streamlit pandas matplotlib altair
-   ```
+2.  Install the required packages:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-3. Run the application:
-   ```bash
-   streamlit run bottoms_sweepstake.py
-   ```
+3.  Run the application:
+    ```bash
+    streamlit run bottoms_sweepstake.py
+    ```
 
-4. Open your web browser and go to http://localhost:8501
+4.  Open your web browser and navigate to the local URL provided by Streamlit (usually http://localhost:8501).
 
 ## Current Player Selections
 
-| Player | Team Picks               |
-|--------|--------------------------|
-| Sean   | Fulham, Everton          |
-| Dom    | Bournemouth, Ipswich     |
-| Harry  | Forest, Wolves           |
-| Chris  | Brentford, Leicester     |
-| Adam   | Brighton, Southampton    |
+| Player | Team Picks                      |
+| :----- | :------------------------------ |
+| Sean   | Fulham, Everton                 |
+| Dom    | Bournemouth, Ipswich Town       |
+| Harry  | Nottingham Forest, Wolverhampton Wanderers |
+| Chris  | Brentford, Leicester City         |
+| Adam   | Brighton & Hove Albion, Southampton |
+
+*Note: Team names must match the official long names used on premierleague.com for correct data merging.*
+
+## Data Source
+
+The application attempts to scrape live league standings from `https://www.premierleague.com/tables`.
+
+**Disclaimer:** Web scraping relies on the structure of the source website. If the Premier League website changes its HTML layout, the scraping function may break. The application includes fallback static data from April 2025, but for truly live data, the scraping function needs to work.
 
 ## Customization
 
 ### Modifying Player Picks
 
-Edit the `player_picks` dictionary in the `bottoms_sweepstake.py` file:
+Edit the `get_player_picks()` function in `bottoms_sweepstake.py`. **Ensure team names exactly match the long names found on premierleague.com.**
 
 ```python
-player_picks = {
-    "Player": ["Sean", "Sean", "Dom", "Dom", "Harry", "Harry", "Chris", "Chris", "Adam", "Adam"],
-    "Team": ["Fulham", "Everton", "Bournemouth", "Ipswich", "Forest", "Wolves", "Brentford", "Leicester", "Brighton", "Southampton"]
-}
-```
-
-### Updating League Standings
-
-Edit the `standings_data` dictionary in the `get_premier_league_standings()` function:
-
-```python
-standings_data = {
-    "Position": [11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
-    "Team": ["Brighton", "Bournemouth", "Fulham", "Wolves", "Everton", "Brentford", "Forest", "Southampton", "Leicester", "Ipswich"],
-    "Points_Value": [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-}
-```
-
-## Future Enhancements
-
-Potential improvements for future versions:
-- Integration with a live football data API for real-time standings
-- Historical tracking of position changes throughout the season
-- Email notifications when standings change
-- Support for multiple sweepstakes/leagues
-- User authentication for personalized views
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Contact
-
-Your Name - your.email@example.com
-Project Link: https://github.com/yourusername/bottoms-sweepstake# Bottoms_Sweepstake
+def get_player_picks():
+    return pd.DataFrame({
+        "Player": ["Sean", "Sean", "Dom", "Dom", "Harry", "Harry", "Chris", "Chris", "Adam", "Adam"],
+        "Team": ["Fulham", "Everton", "Bournemouth", "Ipswich Town",
+                 "Nottingham Forest", "Wolverhampton Wanderers",
+                 "Brentford", "Leicester City",
+                 "Brighton & Hove Albion", "Southampton"]
+    })
