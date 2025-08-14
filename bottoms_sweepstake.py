@@ -4,18 +4,21 @@ import altair as alt
 import time
 from datetime import datetime
 import requests
+
 from bs4 import BeautifulSoup
+
+SEASON_LABEL = "2025/26"
 
 # Set page config
 st.set_page_config(
-    page_title="Bottoms Sweepstake 24/25 Season",
+    page_title=f"Bottoms Sweepstake {SEASON_LABEL} Season",
     page_icon="⚽",
     layout="wide"
 )
 
 # Title and description
 st.title("⚽ Bottoms Sweepstake")
-st.subheader("Premier League 24/25 Season")
+st.subheader(f"Premier League {SEASON_LABEL} Season")
 
 # Stake and jackpot info
 col1, col2 = st.columns(2)
@@ -27,7 +30,7 @@ with col2:
 # --- Fallback Data ---
 # Used if scraping fails
 def get_fallback_standings():
-    st.warning("⚠️ Using fallback static data from April 2025. Could not fetch live standings.")
+    st.warning(f"⚠️ Using placeholder fallback data (24/25 snapshot). Could not fetch {SEASON_LABEL} live standings yet.")
     standings_data = {
         "Position": list(range(1, 21)),
         "Team": [
@@ -44,92 +47,169 @@ def get_fallback_standings():
     df["Points_Value"] = 21 - df["Position"]
     return df
 
-# Function to get current Premier League standings via scraping
+# Function to get current Premier League standings via public JSON API
 @st.cache_data(ttl=1800)  # Cache for 30 minutes
-def get_premier_league_standings():
-    url = "https://www.premierleague.com/tables"
+def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFrame:
+    """Fetch Premier League standings for a given season label (e.g. "2025/26").
+
+    This uses the Premier League's public data service (footballapi.pulselive.com)
+    to resolve the compSeason ID for the requested season and then retrieves the
+    table standings. If anything fails (e.g., network issues, season not yet
+    populated), it falls back to static placeholder data.
+
+    Parameters
+    ----------
+    season_label : str
+        The season label to fetch (default: value of SEASON_LABEL constant).
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: [Position, Team, Points_League, Points_Value]
+    """
+    seasons_url = "https://footballapi.pulselive.com/football/competitions/1/compseasons"
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/json",
+        "Origin": "https://www.premierleague.com",
+        "Referer": "https://www.premierleague.com/tables",
     }
-    
+
     try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()  # Raise an exception for bad status codes
+        # Resolve the compSeason ID for the requested season label
+        resp = requests.get(seasons_url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        payload = resp.json()
 
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        table_body = soup.find('tbody', class_='league-table__tbody')
+        seasons_list = (
+            payload.get("compSeasons")
+            or payload.get("seasons")
+            or (payload if isinstance(payload, list) else [])
+        )
 
-        if not table_body:
-            st.error("Could not find the league table body on the page.")
+        comp_id = None
+        fallback_current = None
+        latest_id = None
+        latest_start = None
+
+        for s in seasons_list:
+            label = s.get("label") or s.get("competition", {}).get("label")
+            sid = s.get("id") or s.get("compSeason", {}).get("id")
+            start = s.get("startDate") or s.get("start", {}).get("date")
+            is_current = s.get("isCurrent") or s.get("current", False)
+
+            if season_label and label == season_label:
+                comp_id = sid
+
+            if is_current and fallback_current is None:
+                fallback_current = sid
+
+            if start:
+                try:
+                    # Normalise ISO strings that may contain a 'T'
+                    ts = start.replace("Z", "").replace("T", " ")
+                    dt = datetime.fromisoformat(ts)
+                    if latest_start is None or dt > latest_start:
+                        latest_start = dt
+                        latest_id = sid
+                except Exception:
+                    pass
+
+        if not comp_id:
+            comp_id = fallback_current or latest_id
+
+        if not comp_id:
+            st.error("Could not resolve a Premier League compSeason id.")
             return get_fallback_standings()
 
-        rows = table_body.find_all('tr', attrs={'data-position': True})
+        # Fetch standings for the resolved compSeason id
+        standings_url = (
+            f"https://footballapi.pulselive.com/football/standings?compSeasons={comp_id}"
+            "&altIds=true&detail=2"
+        )
+        resp2 = requests.get(standings_url, headers=headers, timeout=10)
+        resp2.raise_for_status()
+        data = resp2.json()
 
-        if not rows:
-            st.error("Could not find any team rows in the table.")
-            return get_fallback_standings()
+        tables = data.get("tables") or data.get("standings") or []
 
-        positions = []
-        teams = []
-        points_league = []
+        # Prefer the TOTAL (league) table; otherwise, take the first available
+        table_total = None
+        for t in tables:
+            t_type = (t.get("type") or t.get("stage", {}).get("type", "")).upper()
+            if t_type in ("TOTAL", "LEAGUE"):
+                table_total = t
+                break
+        if table_total is None and tables:
+            table_total = tables[0]
 
-        for row in rows:
+        entries = table_total.get("entries", []) if table_total else []
+
+        positions: list[int] = []
+        teams: list[str] = []
+        points_league: list[int] = []
+
+        for e in entries:
+            pos = e.get("position") or e.get("rank")
+
+            # Team name can live under a few different keys—be defensive
+            team_name = (
+                (e.get("team") or {}).get("name")
+                or (e.get("team", {}).get("club") or {}).get("name")
+                or (e.get("club") or {}).get("name")
+                or (e.get("team") or {}).get("displayName")
+            )
+
+            # Points can appear either directly or inside a stats collection
+            points = e.get("points")
+            if points is None:
+                stats = e.get("stats", {})
+                if isinstance(stats, dict) and "points" in stats:
+                    points = stats.get("points")
+                elif isinstance(stats, list):
+                    for it in stats:
+                        if it.get("name") in ("points", "pts", "Points"):
+                            points = it.get("value") or it.get("displayValue")
+                            break
+
+            if pos is None or team_name is None:
+                continue
+
             try:
-                # Position
-                pos_cell = row.find('td', class_='league-table__pos')
-                pos_span = pos_cell.find('span', class_='league-table__value')
-                position = int(pos_span.text.strip())
-                
-                # Team Name
-                team_cell = row.find('td', class_='league-table__team')
-                team_span_long = team_cell.find('span', class_='league-table__team-name--long')
-                team_name = team_span_long.text.strip()
-                # Handle known name variations if necessary (though scraping long name should be consistent)
-                # e.g., if team_name == "Nott'm Forest": team_name = "Nottingham Forest"
+                positions.append(int(pos))
+            except Exception:
+                continue
 
-                # Points
-                points_cell = row.find('td', class_='league-table__points')
-                points = int(points_cell.text.strip())
+            teams.append(str(team_name).strip())
 
-                positions.append(position)
-                teams.append(team_name)
-                points_league.append(points)
+            try:
+                points_league.append(int(points))
+            except Exception:
+                # Early-season/empty table case: default to zero
+                points_league.append(0)
 
-            except (AttributeError, ValueError, TypeError) as e:
-                st.warning(f"Skipping a row due to parsing error: {e}")
-                continue # Skip row if parsing fails
+        if not positions:
+            st.warning(
+                f"No league entries returned for {season_label}. The season may not be populated yet; showing fallback."
+            )
+            return get_fallback_standings()
 
-        if not positions: # Check if any data was successfully parsed
-             st.error("Failed to parse any team data from the table.")
-             return get_fallback_standings()
-
-        standings_df = pd.DataFrame({
-            "Position": positions,
-            "Team": teams,
-            "Points_League": points_league
-        })
-        
-        # Add points based on position (reverse order: 1st = 20pts, 20th = 1pt)
-        standings_df["Points_Value"] = 21 - standings_df["Position"]
-        
-        # Clean up team names just in case (e.g., removing extra spaces)
-        standings_df['Team'] = standings_df['Team'].str.strip()
-
-        # Ensure all 20 teams were found
-        if len(standings_df) != 20:
-            st.warning(f"Warning: Found {len(standings_df)} teams instead of 20. Data might be incomplete.")
-            # Optional: Fallback if not 20 teams? Or proceed with caution?
-            # return get_fallback_standings() # Stricter check
-        
+        df = pd.DataFrame(
+            {"Position": positions, "Team": teams, "Points_League": points_league}
+        )
+        df.sort_values("Position", inplace=True)
+        df["Points_Value"] = 21 - df["Position"]
         st.success("✅ Live standings fetched successfully!")
-        return standings_df
+        return df
 
-    except requests.exceptions.RequestException as e:
-        st.error(f"Network error fetching standings: {e}")
+    except requests.exceptions.RequestException as exc:
+        st.error(f"Network error fetching standings: {exc}")
         return get_fallback_standings()
-    except Exception as e:
-        st.error(f"An unexpected error occurred during scraping: {e}")
+    except Exception as exc:
+        st.error(f"An unexpected error occurred while fetching standings: {exc}")
         return get_fallback_standings()
 
 
@@ -377,14 +457,6 @@ if st.button("Calculate New Standings"):
             else:
                 st.warning(f"Team '{team}' selected in 'What-If' not found in current standings, ignoring.")
 
-
-        # --- IMPORTANT: What-if logic adjustment ---
-        # The simple update above doesn't handle displacing other teams.
-        # A full simulation is complex. Let's focus *only* on the points impact
-        # for the selected teams based on their hypothetical new positions.
-        # We won't display a full "New League Table" as it's misleading without
-        # adjusting all other teams.
-
         st.subheader("Hypothetical Player Scores (What-If)")
         st.caption("Calculated based ONLY on the new positions entered above. Other teams' positions are assumed unchanged for this calculation.")
 
@@ -455,4 +527,4 @@ if st.button("Calculate New Standings"):
 
 # Add a footer
 st.markdown("---")
-st.caption(f"Bottoms Sweepstake 2024/25 Season | Made with Streamlit | Data scraped from premierleague.com | Last updated: {current_time}")
+st.caption(f"Bottoms Sweepstake {SEASON_LABEL} Season | Made with Streamlit | Data via premierleague.com | Last updated: {current_time}")
