@@ -150,15 +150,32 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
 
     try:
         # Resolve the compSeason ID for the requested season label
-        resp = requests.get(seasons_url, headers=headers, timeout=10)
-        resp.raise_for_status()
-        payload = resp.json()
+        # Use multiple endpoints and explicit pagination; some responses are paginated or use 'content'
+        season_sources = [
+            "https://footballapi.pulselive.com/football/competitions/1/compseasons?page=0&pageSize=120",
+            "https://footballapi.pulselive.com/football/compseasons?comps=1&page=0&pageSize=120",
+            seasons_url,  # fallback (may be unpaginated)
+        ]
 
-        seasons_list = (
-            payload.get("compSeasons")
-            or payload.get("seasons")
-            or (payload if isinstance(payload, list) else [])
-        )
+        seasons_list = []
+        for url in season_sources:
+            try:
+                r = requests.get(url, headers=headers, timeout=10)
+                if r.status_code != 200:
+                    continue
+                js = r.json()
+                items = (
+                    js.get("compSeasons")
+                    or js.get("seasons")
+                    or js.get("content")
+                    or (js if isinstance(js, list) else [])
+                )
+                # Ensure list
+                if isinstance(items, dict):
+                    items = [items]
+                seasons_list.extend(items)
+            except Exception:
+                continue
 
         comp_id = None
         fallback_current = None
