@@ -21,6 +21,11 @@ st.set_page_config(
 st.title("⚽ Bottoms Sweepstake")
 st.subheader(f"Premier League {SEASON_LABEL} Season")
 
+# Controls
+if st.button("🔄 Refresh live data", help="Clear cache and refetch standings"):
+    st.cache_data.clear()
+    st.rerun()
+
 # Stake and jackpot info
 col1, col2 = st.columns(2)
 with col1:
@@ -31,7 +36,7 @@ with col2:
 # --- Fallback Data ---
 # Used if scraping fails
 def get_fallback_standings():
-    st.warning(f"⚠️ Using placeholder fallback data (24/25 snapshot). Could not fetch {SEASON_LABEL} live standings yet.")
+    st.warning(f"⚠️ Using placeholder fallback data (previous season snapshot). Could not fetch {SEASON_LABEL} live standings yet.")
     standings_data = {
         "Position": list(range(1, 21)),
         "Team": [
@@ -47,6 +52,67 @@ def get_fallback_standings():
     # Add points based on position (reverse order: 1st = 20pts, 20th = 1pt)
     df["Points_Value"] = 21 - df["Position"]
     return df
+
+
+# --- Helper: get_comp_season_teams ---
+@st.cache_data(ttl=1800)
+def get_comp_season_teams(comp_id: int) -> list[str]:
+    """Return a list of team names registered to a given compSeason id.
+
+    Tries multiple Pulse Live endpoints because structures can vary pre‑season.
+    Returns an empty list on failure.
+    """
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/json",
+        "Origin": "https://www.premierleague.com",
+        "Referer": "https://www.premierleague.com/tables",
+    }
+
+    candidates = [
+        f"https://footballapi.pulselive.com/football/competitions/1/compseasons/{comp_id}/teams",
+        f"https://footballapi.pulselive.com/football/teams?comps=1&compSeasons={comp_id}",
+    ]
+
+    names: set[str] = set()
+    for url in candidates:
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code != 200:
+                continue
+            js = r.json()
+
+            # Flexible extraction across likely shapes
+            items = (
+                js.get("teams")
+                or js.get("clubs")
+                or js.get("content")
+                or (js if isinstance(js, list) else [])
+            )
+            for it in items:
+                n = (
+                    it.get("name")
+                    or (it.get("team") or {}).get("name")
+                    or (it.get("club") or {}).get("name")
+                    or it.get("displayName")
+                )
+                if n:
+                    names.add(str(n).strip())
+        except Exception:
+            continue
+
+    return sorted(names)
+
+
+def season_start_year_from_label(label: str) -> int | None:
+    """Parse a season label like '2025/26' into its start year (e.g., 2025)."""
+    try:
+        return int(str(label).split("/")[0])
+    except Exception:
+        return None
 
 # Function to get current Premier League standings via public JSON API
 @st.cache_data(ttl=1800)  # Cache for 30 minutes
@@ -68,6 +134,9 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
     pandas.DataFrame
         Columns: [Position, Team, Points_League, Points_Value]
     """
+    # --- Insert: try to parse the requested start year for special matching ---
+    requested_start_year = season_start_year_from_label(season_label)
+
     seasons_url = "https://footballapi.pulselive.com/football/competitions/1/compseasons"
     headers = {
         "User-Agent": (
@@ -95,6 +164,8 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
         fallback_current = None
         latest_id = None
         latest_start = None
+        # --- Insert: track compSeason id matching the requested start year ---
+        comp_id_start_year = None
 
         for s in seasons_list:
             label = s.get("label") or s.get("competition", {}).get("label")
@@ -119,8 +190,19 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
                 except Exception:
                     pass
 
+            # Prefer explicit start-year match if label match is unavailable
+            if requested_start_year and start:
+                try:
+                    ts2 = start.replace("Z", "").replace("T", " ")
+                    dt2 = datetime.fromisoformat(ts2)
+                    if dt2.year == requested_start_year and comp_id_start_year is None:
+                        comp_id_start_year = sid
+                except Exception:
+                    pass
+
         if not comp_id:
-            comp_id = fallback_current or latest_id
+            # Try the start-year match for upcoming seasons
+            comp_id = comp_id_start_year or fallback_current or latest_id
 
         if not comp_id:
             st.error("Could not resolve a Premier League compSeason id.")
@@ -193,8 +275,20 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
                 points_league.append(0)
 
         if not positions:
+            # Pre‑season: standings can be empty even though the compSeason exists.
+            team_names = get_comp_season_teams(comp_id)
+            if team_names:
+                df = pd.DataFrame({
+                    "Position": [0] * len(team_names),
+                    "Team": team_names,
+                    "Points_League": [0] * len(team_names),
+                })
+                df["Points_Value"] = 0
+                st.info(f"📅 {season_label} pre‑season: teams loaded; league table will populate once matches are played.")
+                return df
+
             st.warning(
-                f"No league entries returned for {season_label}. The season may not be populated yet; showing fallback."
+                f"No league entries returned for {season_label}, and no team list available; showing fallback."
             )
             return get_fallback_standings()
 
@@ -227,8 +321,6 @@ def get_player_picks():
 
 # Get standings data (tries scraping, falls back to static)
 standings_df = get_premier_league_standings()
-
-st.dataframe(standings_df)
 
 picks_df = get_player_picks()
 
