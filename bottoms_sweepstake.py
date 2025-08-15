@@ -6,6 +6,7 @@ from datetime import datetime
 import requests
 
 from bs4 import BeautifulSoup
+import numpy as np
 
 SEASON_LABEL = "2025/26"
 
@@ -218,10 +219,10 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
 def get_player_picks():
     return pd.DataFrame({
         "Player": ["Sean", "Sean", "Dom", "Dom", "Harry", "Harry", "Chris", "Chris", "Adam", "Adam"],
-        "Team": ["Fulham", "Everton", "Bournemouth", "Ipswich Town",
-                 "Nottingham Forest", "Wolverhampton Wanderers", # Corrected names
-                 "Brentford", "Leicester City",                 # Corrected name
-                 "Brighton and Hove Albion", "Southampton"]         # Corrected name
+        "Team": ["Fulham", "Everton", "Sunderland", "Leeds United",
+                 "Burnley", "Wolverhampton Wanderers", 
+                 "Tottenham Hotspur", "Manchester United",                
+                 "West Ham United", "Crystal Palace"]        
     })
 
 # Get standings data (tries scraping, falls back to static)
@@ -234,11 +235,6 @@ picks_df = get_player_picks()
 if standings_df is None or standings_df.empty:
     st.error("🚨 Critical Error: Could not load league standings data. Aborting.")
     st.stop()
-
-# Check if standings_df is valid before proceeding
-if standings_df is None or standings_df.empty:
-    st.error("🚨 Critical Error: Could not load league standings data. Aborting.")
-    st.stop() # Stop execution if standings are missing
 
 # --- Data Processing and Display (largely unchanged from original) ---
 
@@ -255,6 +251,14 @@ if not missing_teams.empty:
     merged_df['Points_Value'].fillna(0, inplace=True) # Assign 0 points if team not found
     merged_df['Position'].fillna(0, inplace=True) # Assign 0 position
     merged_df['Points_League'].fillna(0, inplace=True) # Assign 0 league points
+
+# --- Ensure numeric, finite values to keep charts happy ---
+for col in ["Points_Value", "Points_League", "Position"]:
+    merged_df[col] = pd.to_numeric(merged_df[col], errors="coerce")
+merged_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+merged_df[["Points_Value", "Points_League", "Position"]] = (
+    merged_df[["Points_Value", "Points_League", "Position"]].fillna(0)
+)
 
 
 # Calculate total points per player
@@ -339,18 +343,27 @@ for i, player in enumerate(players):
 # Display leaderboard
 st.header("Sweepstake Leaderboard")
 
-# Create horizontal bar chart with Altair
-chart = alt.Chart(player_totals).mark_bar().encode(
-    x=alt.X('Points_Value:Q', title='Total Sweepstake Points'),
-    y=alt.Y('Player:N', title='Player', sort='-x'),
-    color=alt.Color('Points_Value:Q', scale=alt.Scale(scheme='blues'), legend=None),
-    tooltip=['Player', alt.Tooltip('Points_Value:Q', title='Points')]
-).properties(
-    title='Player Rankings',
-    height=alt.Step(40) # Adjust height based on number of players
-)
+# Clean and guard data for chart rendering
+player_totals["Points_Value"] = pd.to_numeric(player_totals["Points_Value"], errors="coerce")
+player_totals.replace([np.inf, -np.inf], np.nan, inplace=True)
+player_totals["Points_Value"].fillna(0, inplace=True)
 
-st.altair_chart(chart, use_container_width=True)
+# Skip chart if there's nothing to plot (prevents Vega-Lite Infinity warnings)
+if player_totals.empty or player_totals["Points_Value"].isna().all():
+    st.info("No leaderboard data to plot yet.")
+else:
+    # Create horizontal bar chart with Altair
+    chart = alt.Chart(player_totals).mark_bar().encode(
+        x=alt.X('Points_Value:Q', title='Total Sweepstake Points'),
+        y=alt.Y('Player:N', title='Player', sort='-x'),
+        color=alt.Color('Points_Value:Q', scale=alt.Scale(scheme='blues'), legend=None),
+        tooltip=['Player', alt.Tooltip('Points_Value:Q', title='Points')]
+    ).properties(
+        title='Player Rankings',
+        height=alt.Step(40)  # Adjust height based on number of players
+    )
+
+    st.altair_chart(chart, use_container_width=True)
 
 # Create a leaderboard table
 st.subheader("Current Standings")
@@ -485,17 +498,25 @@ if st.button("Calculate New Standings"):
         new_player_totals = pd.DataFrame(new_player_totals_list)
         new_player_totals = new_player_totals.sort_values("Points_Value", ascending=False)
 
-        # Display new leaderboard chart
-        new_chart = alt.Chart(new_player_totals).mark_bar().encode(
-            x=alt.X('Points_Value:Q', title='Total Points (Hypothetical)'),
-            y=alt.Y('Player:N', title='Player', sort='-x'),
-            color=alt.Color('Points_Value:Q', scale=alt.Scale(scheme='greens'), legend=None),
-            tooltip=['Player', alt.Tooltip('Points_Value:Q', title='Points')]
-        ).properties(
-            title='Hypothetical Player Rankings',
-            height=alt.Step(40)
-        )
-        st.altair_chart(new_chart, use_container_width=True)
+        # Clean and guard data for chart rendering
+        new_player_totals["Points_Value"] = pd.to_numeric(new_player_totals["Points_Value"], errors="coerce")
+        new_player_totals.replace([np.inf, -np.inf], np.nan, inplace=True)
+        new_player_totals["Points_Value"].fillna(0, inplace=True)
+
+        if new_player_totals.empty or new_player_totals["Points_Value"].isna().all():
+            st.info("No hypothetical data to plot.")
+        else:
+            # Display new leaderboard chart
+            new_chart = alt.Chart(new_player_totals).mark_bar().encode(
+                x=alt.X('Points_Value:Q', title='Total Points (Hypothetical)'),
+                y=alt.Y('Player:N', title='Player', sort='-x'),
+                color=alt.Color('Points_Value:Q', scale=alt.Scale(scheme='greens'), legend=None),
+                tooltip=['Player', alt.Tooltip('Points_Value:Q', title='Points')]
+            ).properties(
+                title='Hypothetical Player Rankings',
+                height=alt.Step(40)
+            )
+            st.altair_chart(new_chart, use_container_width=True)
 
         # Display new leaderboard table
         new_leaderboard_df = new_player_totals.copy()
