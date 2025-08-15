@@ -107,6 +107,31 @@ def get_comp_season_teams(comp_id: int) -> list[str]:
     return sorted(names)
 
 
+ # --- Helper: normalize compSeason id to an int ---
+def _normalize_comp_id(value):
+    """Return a clean integer compSeason id from various input types.
+
+    Handles ints, floats (e.g., 777.0), and numeric strings ('777' or '777.0').
+    Falls back to the original value if conversion is impossible.
+    """
+    try:
+        # Fast path if already int
+        if isinstance(value, int):
+            return value
+        # Handle floats and numpy types
+        if isinstance(value, float):
+            return int(round(value))
+        # Handle strings like '777.0' or ' 777 '
+        s = str(value).strip()
+        try:
+            # If it parses as float, coerce to int
+            f = float(s)
+            return int(round(f))
+        except Exception:
+            return int(s)
+    except Exception:
+        return value
+
 def season_start_year_from_label(label: str) -> int | None:
     """Parse a season label like '2025/26' into its start year (e.g., 2025)."""
     try:
@@ -187,10 +212,7 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
         for s in seasons_list:
             label = s.get("label") or s.get("competition", {}).get("label")
             sid_raw = s.get("id") or (s.get("compSeason") or {}).get("id")
-            try:
-                sid = int(str(sid_raw).strip())
-            except Exception:
-                sid = sid_raw
+            sid = _normalize_comp_id(sid_raw)
             start = s.get("startDate") or s.get("start", {}).get("date")
             is_current = s.get("isCurrent") or s.get("current", False)
 
@@ -226,18 +248,16 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
             comp_id = comp_id_start_year or fallback_current or latest_id
 
         # Normalize comp_id to an integer (avoid '777.0' which causes 400s)
-        try:
-            comp_id = int(str(comp_id).strip())
-        except Exception:
-            pass
+        comp_id = _normalize_comp_id(comp_id)
 
         if not comp_id:
             st.error("Could not resolve a Premier League compSeason id.")
             return get_fallback_standings()
 
         # Fetch standings for the resolved compSeason id
+        comp_id_str = str(_normalize_comp_id(comp_id))
         standings_url = (
-            f"https://footballapi.pulselive.com/football/standings?compSeasons={comp_id}"
+            f"https://footballapi.pulselive.com/football/standings?compSeasons={comp_id_str}"
             "&altIds=true&detail=2"
         )
         resp2 = requests.get(standings_url, headers=headers, timeout=10)
