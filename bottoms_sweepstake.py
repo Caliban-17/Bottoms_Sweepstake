@@ -110,7 +110,7 @@ def get_comp_season_teams(comp_id: int) -> list[str]:
 def season_start_year_from_label(label: str) -> int | None:
     """Parse a season label like '2025/26' into its start year (e.g., 2025)."""
     try:
-        return int(str(label).split("/")[0])
+        return int(str(label).strip().split("/")[0])
     except Exception:
         return None
 
@@ -186,7 +186,11 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
 
         for s in seasons_list:
             label = s.get("label") or s.get("competition", {}).get("label")
-            sid = s.get("id") or s.get("compSeason", {}).get("id")
+            sid_raw = s.get("id") or (s.get("compSeason") or {}).get("id")
+            try:
+                sid = int(str(sid_raw).strip())
+            except Exception:
+                sid = sid_raw
             start = s.get("startDate") or s.get("start", {}).get("date")
             is_current = s.get("isCurrent") or s.get("current", False)
 
@@ -220,6 +224,12 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
         if not comp_id:
             # Try the start-year match for upcoming seasons
             comp_id = comp_id_start_year or fallback_current or latest_id
+
+        # Normalize comp_id to an integer (avoid '777.0' which causes 400s)
+        try:
+            comp_id = int(str(comp_id).strip())
+        except Exception:
+            pass
 
         if not comp_id:
             st.error("Could not resolve a Premier League compSeason id.")
