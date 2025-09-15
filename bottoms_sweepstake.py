@@ -356,14 +356,15 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
 
 
 # Create player picks data for the 24/25 season
-# *** IMPORTANT: Ensure these team names EXACTLY match the long names scraped from premierleague.com ***
 def get_player_picks():
     return pd.DataFrame({
-        "Player": ["Sean", "Sean", "Dom", "Dom", "Harry", "Harry", "Chris", "Chris", "Adam", "Adam"],
-        "Team": ["Fulham", "Everton", "Sunderland", "Leeds United",
-                 "Burnley", "Wolverhampton Wanderers", 
-                 "Tottenham Hotspur", "Manchester United",                
-                 "West Ham United", "Crystal Palace"]        
+        "Player": ["Vosey", "Vosey", "Dom", "Dom", "Chris", "Chris", "Sam", "Sam", "Adam", "Adam", "Sean", "Sean"],
+        "Team": ["Bournemouth", "Leeds United",
+                 "Brentford", "Sunderland",
+                 "Wolverhampton Wanderers", "Fulham",
+                 "Burnley", "Tottenham Hotspur",
+                 "West Ham United", "Manchester United",
+                 "Everton", "Crystal Palace"]        
     })
 
 # Get standings data (tries scraping, falls back to static)
