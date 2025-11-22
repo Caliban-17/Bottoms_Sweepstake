@@ -557,8 +557,8 @@ mid_point = (num_teams + 1) // 2 # Split roughly in half
 with team_columns[0]:
     st.subheader("Teams (Part 1)")
     for i, team in enumerate(player_teams[:mid_point]):
-        # Get current position from the *loaded* standings_df, default to 1 if not found
-        current_pos = current_positions_map.get(team, 1)
+        # Get current position from the *loaded* standings_df, default to 20 if not found (minimal points)
+        current_pos = current_positions_map.get(team, 20)
         modified_positions[team] = st.number_input(
             f"{team} new position:",
             min_value=1,
@@ -572,7 +572,7 @@ with team_columns[0]:
 with team_columns[1]:
     st.subheader("Teams (Part 2)")
     for i, team in enumerate(player_teams[mid_point:]):
-        current_pos = current_positions_map.get(team, 1)
+        current_pos = current_positions_map.get(team, 20)
         modified_positions[team] = st.number_input(
             f"{team} new position:",
             min_value=1,
