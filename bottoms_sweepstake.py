@@ -5,7 +5,64 @@ from datetime import datetime
 import requests
 import numpy as np
 
+import random
+
 SEASON_LABEL = "2025/26"
+
+# --- Funky Assets ---
+# --- Funky Assets ---
+BANTER_PHRASES = {
+    "leader": [
+        "{0} is absolutely flying! Liquid football. 🌊",
+        "Put the champagne on ice. {0} is doing a madness.",
+        "Top bins from {0}. Pure class.",
+        "{0}: 'I would love it if we beat them! Love it!' 😤",
+        "Statues will be built. Streets will be named after {0}.",
+        "{0} is drinking it in. Long. Hard. Deep.",
+        "Gary Neville is currently groaning at how good {0} is. 😩",
+        "Prime Barcelona vibes from {0}. Tiki-taka merchants.",
+    ],
+    "loser": [
+        "{0} mate, you've absolutely bottled it. 🍾",
+        "Proper Sunday League stuff from {0}. Get in the bin.",
+        "{0} couldn't hit a barn door with a banjo. 📉",
+        "Enjoy Millwall away you mug. {0} is down.",
+        "{0} is holding the Wooden Spoon. Cheers Geoff. 🥄",
+        "Even Big Sam couldn't save {0} from this wreck.",
+        "{0} is currently in the mud. Absolute shambles.",
+        "Fraudiola has nothing on the fraudulence of {0}.",
+        "I prefer not to speak about {0}. If I speak, I am in big trouble.",
+    ],
+    "generic": [
+        "Game's gone. Soft penalties everywhere.",
+        "Can they do it on a cold rainy night in Stoke?",
+        "Ref needs Specsavers. 👓",
+        "VAR checking... still checking... Good ebening. 🖥️",
+        "Unbelievable Jeff!",
+        "Chat sh*t, get banged. 🦊",
+        "Prawn sandwich brigade out in force today. 🍤",
+        "Meat pie, sausage roll, come on {0}, give us a goal!",
+        "Back in my day you could tackle. Game's gone soft.",
+        "Bald fraud detected.",
+        "Farmers league performance.",
+    ]
+}
+
+def get_banter(leader_name, loser_name):
+    """Generate a random bit of 'banter' based on game state."""
+    r = random.random()
+    if r < 0.4:
+        return random.choice(BANTER_PHRASES["leader"]).format(leader_name)
+    elif r < 0.8:
+        return random.choice(BANTER_PHRASES["loser"]).format(loser_name)
+    else:
+        # Generic phrases might need a specific name injected if they use placeholders
+        phrase = random.choice(BANTER_PHRASES["generic"])
+        if "{0}" in phrase:
+            # Pick a random player to target if the phrase requires it
+             return phrase.format(leader_name if random.random() > 0.5 else loser_name)
+        return phrase
+
 
 # Set page config
 st.set_page_config(
@@ -18,10 +75,72 @@ st.set_page_config(
 st.title("⚽ Bottoms Sweepstake")
 st.subheader(f"Premier League {SEASON_LABEL} Season")
 
+# --- CSS Injection for Funky Animations ---
+st.markdown(
+    """
+    <style>
+    /* Spin Effect on Hover for Headshots */
+    .headshot-img:hover {
+        animation: spin 1s infinite linear;
+        cursor: pointer;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* Pulsating Border for Leader */
+    .leader-card {
+        border: 2px solid #FFD700 !important;
+        box-shadow: 0 0 10px #FFD700;
+        animation: pulse-gold 2s infinite;
+    }
+    
+    @keyframes pulse-gold {
+        0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
+    }
+
+    /* Shake Effect for Loser */
+    .loser-card {
+        border: 2px solid #ff4b4b !important;
+        background-color: rgba(255, 75, 75, 0.1) !important;
+    }
+    
+    .loser-card:hover {
+        animation: shake 0.5s;
+        animation-iteration-count: infinite;
+    }
+
+    @keyframes shake {
+        0% { transform: translate(1px, 1px) rotate(0deg); }
+        10% { transform: translate(-1px, -2px) rotate(-1deg); }
+        20% { transform: translate(-3px, 0px) rotate(1deg); }
+        30% { transform: translate(3px, 2px) rotate(0deg); }
+        40% { transform: translate(1px, -1px) rotate(1deg); }
+        50% { transform: translate(-1px, 2px) rotate(-1deg); }
+        60% { transform: translate(-3px, 1px) rotate(0deg); }
+        70% { transform: translate(3px, 1px) rotate(-1deg); }
+        80% { transform: translate(-1px, -1px) rotate(1deg); }
+        90% { transform: translate(1px, 2px) rotate(0deg); }
+        100% { transform: translate(1px, -2px) rotate(-1deg); }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # Controls
-if st.button("🔄 Refresh live data", help="Clear cache and refetch standings"):
-    st.cache_data.clear()
-    st.rerun()
+col_ctrl1, col_ctrl2 = st.columns([1, 4])
+with col_ctrl1:
+    if st.button("🔄 Refresh", help="Clear cache and refetch standings"):
+        st.cache_data.clear()
+        st.rerun()
+with col_ctrl2:
+    if st.button("🎉 Celebrate Leader"):
+        st.balloons()
 
 # Stake and jackpot info
 col1, col2 = st.columns(2)
@@ -30,6 +149,24 @@ with col1:
 with col2:
     st.success("**Jackpot:** £25 🤑")
 
+
+import base64
+import os
+
+# --- Helper: image to base64 for dataframe display ---
+def get_image_base64(path):
+    """Convert a local image file to a base64 data URI."""
+    if not os.path.exists(path):
+        return None
+    with open(path, "rb") as f:
+        data = f.read()
+    encoded = base64.b64encode(data).decode()
+    # Assume png for simplicity, browser often handles mixed mime types in data uris gracefully enough
+    # or detect extension. Let's assume PNG/JPG.
+    mime = "image/png"
+    if path.lower().endswith(".jpg") or path.lower().endswith(".jpeg"):
+        mime = "image/jpeg"
+    return f"data:{mime};base64,{encoded}"
 
 # --- Fallback Data ---
 # Used if scraping fails
@@ -40,53 +177,31 @@ def get_fallback_standings():
     standings_data = {
         "Position": list(range(1, 21)),
         "Team": [
-            "Liverpool",
-            "Arsenal",
-            "Nottingham Forest",
-            "Chelsea",
-            "Manchester City",
-            "Newcastle United",
-            "Brighton and Hove Albion",
-            "Fulham",
-            "Aston Villa",
-            "Bournemouth",
-            "Brentford",
-            "Crystal Palace",
-            "Manchester United",
-            "Tottenham Hotspur",
-            "Everton",
-            "West Ham United",
-            "Wolverhampton Wanderers",
-            "Ipswich Town",
-            "Leicester City",
-            "Southampton",
+            "Liverpool", "Arsenal", "Nottingham Forest", "Chelsea",
+            "Manchester City", "Newcastle United", "Brighton and Hove Albion", "Fulham",
+            "Aston Villa", "Bournemouth", "Brentford", "Crystal Palace",
+            "Manchester United", "Tottenham Hotspur", "Everton", "West Ham United",
+            "Wolverhampton Wanderers", "Ipswich Town", "Leicester City", "Southampton",
         ],
+        "Team_ID": [
+            10, 1, 15, 4,
+            11, 23, 131, 34,
+            2, 127, 130, 6,
+            12, 21, 7, 25,
+            38, 8, 26, 20
+        ], # Approximate IDs for fallback
         "Points_League": [
-            70,
-            58,
-            54,
-            49,
-            48,
-            47,
-            47,
-            45,
-            45,
-            44,
-            41,
-            39,
-            37,
-            34,
-            34,
-            34,
-            26,
-            17,
-            17,
-            9,
+            70, 58, 54, 49, 48, 47, 47, 45, 45, 44,
+            41, 39, 37, 34, 34, 34, 26, 17, 17, 9
         ],
     }
     df = pd.DataFrame(standings_data)
     # Add points based on position (reverse order: 1st = 20pts, 20th = 1pt)
     df["Points_Value"] = 21 - df["Position"]
+    # Generate Crest URLs
+    df["Crest_URL"] = df["Team_ID"].apply(
+        lambda x: f"https://resources.premierleague.com/premierleague/badges/50/t{x}.png"
+    )
     return df
 
 
@@ -320,6 +435,7 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
 
         positions: list[int] = []
         teams: list[str] = []
+        ids: list[int] = []  # Store team IDs
         points_league: list[int] = []
 
         for e in entries:
@@ -355,6 +471,11 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
 
             teams.append(str(team_name).strip())
 
+            # Extract Team ID for crest
+            t_id = (e.get("team") or {}).get("id") or (e.get("club") or {}).get("id")
+            # Fallback if id missing
+            ids.append(int(t_id) if t_id else 0)
+
             try:
                 points_league.append(int(points))
             except Exception:
@@ -384,8 +505,13 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
             return get_fallback_standings()
 
         df = pd.DataFrame(
-            {"Position": positions, "Team": teams, "Points_League": points_league}
+            {"Position": positions, "Team": teams, "Team_ID": ids, "Points_League": points_league}
         )
+        # Generate Crest URLs
+        df["Crest_URL"] = df["Team_ID"].apply(
+            lambda x: f"https://resources.premierleague.com/premierleague/badges/50/t{x}.png" if x > 0 else None
+        )
+
         df.sort_values("Position", inplace=True)
         df["Points_Value"] = 21 - df["Position"]
         st.success("✅ Live standings fetched successfully!")
@@ -499,9 +625,10 @@ with st.expander("Points Assignment & Current Standings"):
     # Show the current standings table based on fetched/fallback data
     st.subheader("Current Premier League Standings")
     display_standings = standings_df[
-        ["Position", "Team", "Points_League", "Points_Value"]
+        ["Position", "Crest_URL", "Team", "Points_League", "Points_Value"]
     ].rename(
         columns={
+            "Crest_URL": "",
             "Points_Value": "Sweepstake Points Worth",
             "Points_League": "League Points",
         }
@@ -510,6 +637,7 @@ with st.expander("Points Assignment & Current Standings"):
         display_standings.sort_values("Position"),  # Ensure sorted by position
         column_config={
             "Position": st.column_config.NumberColumn(format="%d"),
+            "": st.column_config.ImageColumn(width="small"),
             "Team": "Team",
             "League Points": st.column_config.NumberColumn(format="%d pts"),
             "Sweepstake Points Worth": st.column_config.NumberColumn(format="%d pts"),
@@ -518,23 +646,109 @@ with st.expander("Points Assignment & Current Standings"):
         use_container_width=True,
     )
 
+# --- Player Profile / Headshot Upload ---
+with st.sidebar:
+    st.header("👤 Player Profile")
+    players_list = sorted(picks_df["Player"].unique())
+    selected_player = st.selectbox("Select Player to Edit", players_list)
+    
+    st.caption("Upload a new headshot:")
+    uploaded_file = st.file_uploader("Choose an image...", type=['png', 'jpg', 'jpeg'])
+    
+    headshot_dir = "assets/headshots"
+    os.makedirs(headshot_dir, exist_ok=True)
+    
+    if uploaded_file is not None:
+        file_ext = os.path.splitext(uploaded_file.name)[1]
+        if not file_ext:
+            file_ext = ".png" # default
+            
+        # Sanitize filename: use player name
+        # e.g. "assets/headshots/Adam.png"
+        target_filename = f"{selected_player}{file_ext}"
+        target_path = os.path.join(headshot_dir, target_filename)
+        
+        with open(target_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        
+        st.success(f"Headshot updated for {selected_player}!")
+        st.cache_data.clear() # Clear cache to potentially reload visuals if they depended on cached data
+        # time.sleep(1) # requires import time; skip or just rerun
+        st.rerun()
+
+# --- Helper to get headshot URL/Base64 for a player ---
+def get_player_headshot(player_name):
+    # Check for png/jpg/jpeg
+    for ext in [".png", ".jpg", ".jpeg"]:
+        path = os.path.join("assets/headshots", f"{player_name}{ext}")
+        if os.path.exists(path):
+            return get_image_base64(path)
+    # Return a default placeholder (online or local?)
+    # Using a generic placeholder URL
+    return "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y"
+
+
 # Display player picks and points
 st.header("Player Team Selections")
+
+# Determine Leader and Loser first for styling
+temp_totals = merged_df.groupby("Player")["Points_Value"].sum().sort_values(ascending=False)
+if not temp_totals.empty:
+    current_leader = temp_totals.index[0]
+    current_loser = temp_totals.index[-1]
+    
+    # Display Banter Message
+    banter_msg = get_banter(current_leader, current_loser)
+    st.info(f"📢 **BanterBot:** {banter_msg}")
+else:
+    current_leader = None
+    current_loser = None
+
 cols = st.columns(len(picks_df["Player"].unique()))  # Dynamically create columns
 players = sorted(picks_df["Player"].unique())
 
 for i, player in enumerate(players):
     with cols[i]:
-        st.subheader(player)
+        # Header with Headshot
+        headshot_src = get_player_headshot(player)
+        
+        # Styles for Headshot
+        img_class = "headshot-img"
+        extra_badges = ""
+        
+        if player == current_leader:
+            extra_badges = "👑"
+        elif player == current_loser:
+            extra_badges = "🥄"
+
+        # Use HTML for the circular headshot + name combo
+        st.markdown(
+            f"""
+            <div style="text-align: center;">
+                <img src="{headshot_src}" class="{img_class}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd;">
+                <h3>{player} {extra_badges}</h3>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
         player_data = merged_df[merged_df["Player"] == player]
         # Recalculate total points here to ensure consistency after potential fillna
         total_points = player_data["Points_Value"].sum()
+
+        # Styles for the Card Container
+        card_class = ""
+        if player == current_leader:
+            card_class = "leader-card"
+        elif player == current_loser:
+            card_class = "loser-card"
 
         for _, row in player_data.iterrows():
             team = row["Team"]
             position = row["Position"]
             points = row["Points_Value"]
             league_points = row["Points_League"]
+            crest = row.get("Crest_URL")
 
             # Format position nicely, handle potential 0 from fillna
             pos_display = f"{int(position)}" if position > 0 else "N/A"
@@ -547,11 +761,14 @@ for i, player in enumerate(players):
                 if points > 0
                 else "rgba(128, 128, 128, 0.1)"
             )  # Grey if N/A
+            
+            # Crest image tag
+            crest_html = f'<img src="{crest}" width="24" style="vertical-align: middle; margin-right: 5px;">' if crest else ''
 
             st.markdown(
                 f"""
-                <div style="padding: 10px; margin-bottom: 10px; background-color: {bg_color}; border-radius: 5px;">
-                    <b>{team}</b><br>
+                <div class="{card_class}" style="padding: 10px; margin-bottom: 10px; background-color: {bg_color}; border-radius: 5px;">
+                    <div style="font-weight: bold; font-size: 1.1em;">{crest_html}{team}</div>
                     Position: {pos_display}<br>
                     Sweepstake Points: {int(points)}<br>
                     League Points: {int(league_points)}
@@ -560,7 +777,7 @@ for i, player in enumerate(players):
                 unsafe_allow_html=True,
             )
 
-        st.markdown(f"**Total: {int(total_points)} points**")
+        st.markdown(f"<div style='text-align: center; font-weight: bold;'>Total: {int(total_points)} points</div>", unsafe_allow_html=True)
 
 
 # Display leaderboard
@@ -610,18 +827,23 @@ else:
 # Create a leaderboard table
 st.subheader("Current Standings")
 leaderboard_df = player_totals.copy()
+
+# Add Headshots
+leaderboard_df["Headshot"] = leaderboard_df["Player"].apply(get_player_headshot)
+
 # Handle ties in rank
 leaderboard_df["Rank"] = (
     leaderboard_df["Points_Value"].rank(method="min", ascending=False).astype(int)
 )
 leaderboard_df = leaderboard_df.sort_values("Rank")
-leaderboard_df = leaderboard_df[["Rank", "Player", "Points_Value"]]
-leaderboard_df.rename(columns={"Points_Value": "Total Points"}, inplace=True)
+leaderboard_df = leaderboard_df[["Rank", "Headshot", "Player", "Points_Value"]]
+leaderboard_df.rename(columns={"Points_Value": "Total Points", "Headshot": ""}, inplace=True)
 
 st.dataframe(
     leaderboard_df,
     column_config={
         "Rank": st.column_config.NumberColumn(format="%d"),
+        "": st.column_config.ImageColumn(width="small"),
         "Player": "Player",
         "Total Points": st.column_config.NumberColumn(format="%d"),
     },
@@ -764,6 +986,9 @@ if st.button("Calculate New Standings"):
             "Points_Value", ascending=False
         )
 
+        # Add Headshots to Hypothetical Leaderboard
+        new_player_totals["Headshot"] = new_player_totals["Player"].apply(get_player_headshot)
+        
         # Clean and guard data for chart rendering
         new_player_totals["Points_Value"] = pd.to_numeric(
             new_player_totals["Points_Value"], errors="coerce"
@@ -809,15 +1034,16 @@ if st.button("Calculate New Standings"):
             .astype(int)
         )
         new_leaderboard_df = new_leaderboard_df.sort_values("Rank")
-        new_leaderboard_df = new_leaderboard_df[["Rank", "Player", "Points_Value"]]
+        new_leaderboard_df = new_leaderboard_df[["Rank", "Headshot", "Player", "Points_Value"]]
         new_leaderboard_df.rename(
-            columns={"Points_Value": "Total Points"}, inplace=True
+            columns={"Points_Value": "Total Points", "Headshot": ""}, inplace=True
         )
 
         st.dataframe(
             new_leaderboard_df,
             column_config={
                 "Rank": st.column_config.NumberColumn(format="%d"),
+                "": st.column_config.ImageColumn(width="small"),
                 "Player": "Player",
                 "Total Points": st.column_config.NumberColumn(format="%d"),
             },
