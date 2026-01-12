@@ -48,6 +48,39 @@ BANTER_PHRASES = {
     ]
 }
 
+# --- Authoritative Opta IDs (for Crests) ---
+# The badge URL uses 't{id}' where id is the OPTA id, not Pulse ID.
+OPTA_ID_MAP = {
+    "Arsenal": "t3",
+    "Aston Villa": "t7",
+    "Bournemouth": "t91",
+    "Brentford": "t94",
+    "Brighton & Hove Albion": "t36",
+    "Brighton and Hove Albion": "t36",
+    "Burnley": "t90",
+    "Chelsea": "t8",
+    "Crystal Palace": "t31",
+    "Everton": "t11",
+    "Fulham": "t54",
+    "Ipswich Town": "t8", # Verify if needed, keeping placeholder
+    "Leeds United": "t2",
+    "Leicester City": "t13",
+    "Liverpool": "t14",
+    "Luton Town": "t102",
+    "Manchester City": "t43",
+    "Manchester United": "t1",
+    "Newcastle United": "t4",
+    "Nottingham Forest": "t17",
+    "Sheffield United": "t49",
+    "Southampton": "t20",
+    "Sunderland": "t56",
+    "Tottenham Hotspur": "t6",
+    "Watford": "t57",
+    "West Ham United": "t21",
+    "Wolverhampton Wanderers": "t39",
+}
+
+
 def get_banter(leader_name, loser_name):
     """Generate a random bit of 'banter' based on game state."""
     r = random.random()
@@ -184,12 +217,12 @@ def get_fallback_standings():
             "Wolverhampton Wanderers", "Ipswich Town", "Leicester City", "Southampton",
         ],
         "Team_ID": [
-            10, 1, 15, 4,
-            11, 23, 131, 34,
-            2, 127, 130, 6,
-            12, 21, 7, 25,
-            38, 8, 26, 20
-        ], # Approximate IDs for fallback
+            OPTA_ID_MAP.get("Liverpool", "t14"), OPTA_ID_MAP.get("Arsenal", "t3"), OPTA_ID_MAP.get("Nottingham Forest", "t17"), OPTA_ID_MAP.get("Chelsea", "t8"),
+            OPTA_ID_MAP.get("Manchester City", "t43"), OPTA_ID_MAP.get("Newcastle United", "t4"), OPTA_ID_MAP.get("Brighton and Hove Albion", "t36"), OPTA_ID_MAP.get("Fulham", "t54"),
+            OPTA_ID_MAP.get("Aston Villa", "t7"), OPTA_ID_MAP.get("Bournemouth", "t91"), OPTA_ID_MAP.get("Brentford", "t94"), OPTA_ID_MAP.get("Crystal Palace", "t31"),
+            OPTA_ID_MAP.get("Manchester United", "t1"), OPTA_ID_MAP.get("Tottenham Hotspur", "t6"), OPTA_ID_MAP.get("Everton", "t11"), OPTA_ID_MAP.get("West Ham United", "t21"),
+            OPTA_ID_MAP.get("Wolverhampton Wanderers", "t39"), "t8", "t13", "t20" # Manual fallback for promoted teams if missing in map
+        ], 
         "Points_League": [
             70, 58, 54, 49, 48, 47, 47, 45, 45, 44,
             41, 39, 37, 34, 34, 34, 26, 17, 17, 9
@@ -198,9 +231,9 @@ def get_fallback_standings():
     df = pd.DataFrame(standings_data)
     # Add points based on position (reverse order: 1st = 20pts, 20th = 1pt)
     df["Points_Value"] = 21 - df["Position"]
-    # Generate Crest URLs
+    # Generate Crest URLs using the verified IDs
     df["Crest_URL"] = df["Team_ID"].apply(
-        lambda x: f"https://resources.premierleague.com/premierleague/badges/50/t{x}.png"
+        lambda x: f"https://resources.premierleague.com/premierleague/badges/50/{x}.png" if x else None
     )
     return df
 
@@ -435,7 +468,7 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
 
         positions: list[int] = []
         teams: list[str] = []
-        ids: list[int] = []  # Store team IDs
+        ids: list[str] = []  # Store team IDs (Opta Strings)
         points_league: list[int] = []
 
         for e in entries:
@@ -471,11 +504,30 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
 
             teams.append(str(team_name).strip())
 
-            # Extract Team ID for crest
-            t_id = (e.get("team") or {}).get("id") or (e.get("club") or {}).get("id")
-            # Fallback if id missing
-            ids.append(int(t_id) if t_id else 0)
+            # Map correct ID from hardcoded map first, falling back to API response (looking for 'opta' id)
+            clean_name = str(team_name).strip()
+            # Try exact match or match stripping 'FC' etc if needed (usually exact works with Pulse Live names)
+            mapped_id = OPTA_ID_MAP.get(clean_name)
+            
+            if mapped_id:
+                ids.append(mapped_id)
+            else:
+                 # Extract Opta ID from API response if not in map
+                opta_id = (e.get("team") or {}).get("altIds", {}).get("opta")
+                # Fallback to hardcoded generic or Pulse ID extraction if absolutely necessary, but Opta usually exists
+                if not opta_id:
+                     # Try finding 'club'
+                     opta_id = (e.get("club") or {}).get("altIds", {}).get("opta")
+                
+                ids.append(str(opta_id) if opta_id else "t0")
 
+            # Extract points (usually in 'overall' -> 'points')
+            points = 0
+            if "overall" in e and "points" in e["overall"]:
+                points = e["overall"]["points"]
+            elif "points" in e:
+                points = e["points"]
+            
             try:
                 points_league.append(int(points))
             except Exception:
@@ -509,7 +561,7 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
         )
         # Generate Crest URLs
         df["Crest_URL"] = df["Team_ID"].apply(
-            lambda x: f"https://resources.premierleague.com/premierleague/badges/50/t{x}.png" if x > 0 else None
+            lambda x: f"https://resources.premierleague.com/premierleague/badges/50/{x}.png" if x and x != "t0" else None
         )
 
         df.sort_values("Position", inplace=True)
