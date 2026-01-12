@@ -10,7 +10,6 @@ import random
 SEASON_LABEL = "2025/26"
 
 # --- Funky Assets ---
-# --- Funky Assets ---
 BANTER_PHRASES = {
     "leader": [
         "{0} is absolutely flying! Liquid football. 🌊",
@@ -28,10 +27,10 @@ BANTER_PHRASES = {
         "{0} couldn't hit a barn door with a banjo. 📉",
         "Enjoy Millwall away you mug. {0} is down.",
         "{0} is holding the Wooden Spoon. Cheers Geoff. 🥄",
-        "Even Big Sam couldn't save {0} from this wreck.",
-        "{0} is currently in the mud. Absolute shambles.",
-        "Fraudiola has nothing on the fraudulence of {0}.",
-        "I prefer not to speak about {0}. If I speak, I am in big trouble.",
+        "Even Big Sam couldn't save {5} from this wreck.",
+        "{2} is currently in the mud. Absolute shambles.",
+        "Fraudiola has nothing on the fraudulence of {2}.",
+        "I prefer not to speak about {3}. If I speak, I am in big trouble.",
     ],
     "generic": [
         "Game's gone. Soft penalties everywhere.",
@@ -41,7 +40,7 @@ BANTER_PHRASES = {
         "Unbelievable Jeff!",
         "Chat sh*t, get banged. 🦊",
         "Prawn sandwich brigade out in force today. 🍤",
-        "Meat pie, sausage roll, come on {0}, give us a goal!",
+        "Meat pie, sausage roll, come on {5}, give us a goal!",
         "Back in my day you could tackle. Game's gone soft.",
         "Bald fraud detected.",
         "Farmers league performance.",
@@ -81,20 +80,35 @@ OPTA_ID_MAP = {
 }
 
 
-def get_banter(leader_name, loser_name):
-    """Generate a random bit of 'banter' based on game state."""
+def get_banter(sorted_players):
+    """Generate a random bit of 'banter' based on game state.
+    Args:
+        sorted_players: List of player names sorted by score (0=First, -1=Last).
+    """
+    if not sorted_players:
+        return "Not enough players for banter yet."
+
     r = random.random()
-    if r < 0.4:
-        return random.choice(BANTER_PHRASES["leader"]).format(leader_name)
-    elif r < 0.8:
-        return random.choice(BANTER_PHRASES["loser"]).format(loser_name)
-    else:
-        # Generic phrases might need a specific name injected if they use placeholders
-        phrase = random.choice(BANTER_PHRASES["generic"])
-        if "{0}" in phrase:
-            # Pick a random player to target if the phrase requires it
-             return phrase.format(leader_name if random.random() > 0.5 else loser_name)
-        return phrase
+    try:
+        if r < 0.4:
+            # Leader banter
+            return random.choice(BANTER_PHRASES["leader"]).format(*sorted_players)
+        elif r < 0.8:
+            # Loser banter
+            return random.choice(BANTER_PHRASES["loser"]).format(*sorted_players)
+        else:
+            # Generic/Mid-table banter
+            phrase = random.choice(BANTER_PHRASES["generic"])
+            
+            # If the phrase has no placeholders, just return it
+            if "{" not in phrase:
+                return phrase
+                
+            # If it has placeholders like {3} (specific rank), format with all players
+            return phrase.format(*sorted_players)
+    except IndexError:
+        # Fallback if a phrase references {5} but there are fewer players
+        return "The banter generator is confused. Just like VAR."
 
 
 # Set page config
@@ -750,7 +764,8 @@ if not temp_totals.empty:
     current_loser = temp_totals.index[-1]
     
     # Display Banter Message
-    banter_msg = get_banter(current_leader, current_loser)
+    # Pass the entire sorted list of player names to the banter generator
+    banter_msg = get_banter(temp_totals.index.tolist())
     st.info(f"📢 **BanterBot:** {banter_msg}")
 else:
     current_leader = None
