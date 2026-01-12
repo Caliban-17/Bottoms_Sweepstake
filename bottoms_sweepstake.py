@@ -1,11 +1,8 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-import time
 from datetime import datetime
 import requests
-
-from bs4 import BeautifulSoup
 import numpy as np
 
 SEASON_LABEL = "2025/26"
@@ -14,7 +11,7 @@ SEASON_LABEL = "2025/26"
 st.set_page_config(
     page_title=f"Bottoms Sweepstake {SEASON_LABEL} Season",
     page_icon="⚽",
-    layout="wide"
+    layout="wide",
 )
 
 # Title and description
@@ -33,20 +30,59 @@ with col1:
 with col2:
     st.success("**Jackpot:** £25 🤑")
 
+
 # --- Fallback Data ---
 # Used if scraping fails
 def get_fallback_standings():
-    st.warning(f"⚠️ Using placeholder fallback data (previous season snapshot). Could not fetch {SEASON_LABEL} live standings yet.")
+    st.warning(
+        f"⚠️ Using placeholder fallback data (previous season snapshot). Could not fetch {SEASON_LABEL} live standings yet."
+    )
     standings_data = {
         "Position": list(range(1, 21)),
         "Team": [
-            "Liverpool", "Arsenal", "Nottingham Forest", "Chelsea",
-            "Manchester City", "Newcastle United", "Brighton and Hove Albion", "Fulham",
-            "Aston Villa", "Bournemouth", "Brentford", "Crystal Palace",
-            "Manchester United", "Tottenham Hotspur", "Everton", "West Ham United",
-            "Wolverhampton Wanderers", "Ipswich Town", "Leicester City", "Southampton"
+            "Liverpool",
+            "Arsenal",
+            "Nottingham Forest",
+            "Chelsea",
+            "Manchester City",
+            "Newcastle United",
+            "Brighton and Hove Albion",
+            "Fulham",
+            "Aston Villa",
+            "Bournemouth",
+            "Brentford",
+            "Crystal Palace",
+            "Manchester United",
+            "Tottenham Hotspur",
+            "Everton",
+            "West Ham United",
+            "Wolverhampton Wanderers",
+            "Ipswich Town",
+            "Leicester City",
+            "Southampton",
         ],
-        "Points_League": [70, 58, 54, 49, 48, 47, 47, 45, 45, 44, 41, 39, 37, 34, 34, 34, 26, 17, 17, 9]
+        "Points_League": [
+            70,
+            58,
+            54,
+            49,
+            48,
+            47,
+            47,
+            45,
+            45,
+            44,
+            41,
+            39,
+            37,
+            34,
+            34,
+            34,
+            26,
+            17,
+            17,
+            9,
+        ],
     }
     df = pd.DataFrame(standings_data)
     # Add points based on position (reverse order: 1st = 20pts, 20th = 1pt)
@@ -107,7 +143,7 @@ def get_comp_season_teams(comp_id: int) -> list[str]:
     return sorted(names)
 
 
- # --- Helper: normalize compSeason id to an int ---
+# --- Helper: normalize compSeason id to an int ---
 def _normalize_comp_id(value):
     """Return a clean integer compSeason id from various input types.
 
@@ -132,12 +168,14 @@ def _normalize_comp_id(value):
     except Exception:
         return value
 
+
 def season_start_year_from_label(label: str) -> int | None:
     """Parse a season label like '2025/26' into its start year (e.g., 2025)."""
     try:
         return int(str(label).strip().split("/")[0])
     except Exception:
         return None
+
 
 # Function to get current Premier League standings via public JSON API
 @st.cache_data(ttl=1800)  # Cache for 30 minutes
@@ -162,7 +200,9 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
     # --- Insert: try to parse the requested start year for special matching ---
     requested_start_year = season_start_year_from_label(season_label)
 
-    seasons_url = "https://footballapi.pulselive.com/football/competitions/1/compseasons"
+    seasons_url = (
+        "https://footballapi.pulselive.com/football/competitions/1/compseasons"
+    )
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -325,13 +365,17 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
             # Pre‑season: standings can be empty even though the compSeason exists.
             team_names = get_comp_season_teams(comp_id)
             if team_names:
-                df = pd.DataFrame({
-                    "Position": [0] * len(team_names),
-                    "Team": team_names,
-                    "Points_League": [0] * len(team_names),
-                })
+                df = pd.DataFrame(
+                    {
+                        "Position": [0] * len(team_names),
+                        "Team": team_names,
+                        "Points_League": [0] * len(team_names),
+                    }
+                )
                 df["Points_Value"] = 0
-                st.info(f"📅 {season_label} pre‑season: teams loaded; league table will populate once matches are played.")
+                st.info(
+                    f"📅 {season_label} pre‑season: teams loaded; league table will populate once matches are played."
+                )
                 return df
 
             st.warning(
@@ -357,15 +401,39 @@ def get_premier_league_standings(season_label: str = SEASON_LABEL) -> pd.DataFra
 
 # Create player picks data for the 24/25 season
 def get_player_picks():
-    return pd.DataFrame({
-        "Player": ["Vosey", "Vosey", "Dom", "Dom", "Chris", "Chris", "Sam", "Sam", "Adam", "Adam", "Sean", "Sean"],
-        "Team": ["Bournemouth", "Leeds United",
-                 "Brentford", "Sunderland",
-                 "Wolverhampton Wanderers", "Fulham",
-                 "Burnley", "Tottenham Hotspur",
-                 "West Ham United", "Manchester United",
-                 "Everton", "Crystal Palace"]        
-    })
+    return pd.DataFrame(
+        {
+            "Player": [
+                "Vosey",
+                "Vosey",
+                "Dom",
+                "Dom",
+                "Chris",
+                "Chris",
+                "Sam",
+                "Sam",
+                "Adam",
+                "Adam",
+                "Sean",
+                "Sean",
+            ],
+            "Team": [
+                "Bournemouth",
+                "Leeds United",
+                "Brentford",
+                "Sunderland",
+                "Wolverhampton Wanderers",
+                "Fulham",
+                "Burnley",
+                "Tottenham Hotspur",
+                "West Ham United",
+                "Manchester United",
+                "Everton",
+                "Crystal Palace",
+            ],
+        }
+    )
+
 
 # Get standings data (tries scraping, falls back to static)
 standings_df = get_premier_league_standings()
@@ -383,22 +451,26 @@ if standings_df is None or standings_df.empty:
 merged_df = pd.merge(picks_df, standings_df, on="Team", how="left")
 
 # Handle potential missing teams after merge (if scraping failed partially or team names mismatch)
-missing_teams = merged_df[merged_df['Position'].isna()]
+missing_teams = merged_df[merged_df["Position"].isna()]
 if not missing_teams.empty:
     st.warning("Could not find standings data for the following teams:")
-    st.dataframe(missing_teams[['Player', 'Team']], hide_index=True)
+    st.dataframe(missing_teams[["Player", "Team"]], hide_index=True)
     # Decide how to handle points for missing teams: assign 0 or handle differently
-    merged_df['Points_Value'].fillna(0, inplace=True) # Assign 0 points if team not found
-    merged_df['Position'].fillna(0, inplace=True) # Assign 0 position
-    merged_df['Points_League'].fillna(0, inplace=True) # Assign 0 league points
+    merged_df["Points_Value"] = merged_df["Points_Value"].fillna(
+        0
+    )  # Assign 0 points if team not found
+    merged_df["Position"] = merged_df["Position"].fillna(0)  # Assign 0 position
+    merged_df["Points_League"] = merged_df["Points_League"].fillna(
+        0
+    )  # Assign 0 league points
 
 # --- Ensure numeric, finite values to keep charts happy ---
 for col in ["Points_Value", "Points_League", "Position"]:
     merged_df[col] = pd.to_numeric(merged_df[col], errors="coerce")
 merged_df.replace([np.inf, -np.inf], np.nan, inplace=True)
-merged_df[["Points_Value", "Points_League", "Position"]] = (
-    merged_df[["Points_Value", "Points_League", "Position"]].fillna(0)
-)
+merged_df[["Points_Value", "Points_League", "Position"]] = merged_df[
+    ["Points_Value", "Points_League", "Position"]
+].fillna(0)
 
 
 # Calculate total points per player
@@ -411,7 +483,8 @@ st.caption(f"Last updated: {current_time}")
 
 # Add a toggle for advanced details
 with st.expander("Points Assignment & Current Standings"):
-    st.write("""
+    st.write(
+        """
     Each team's position in the Premier League table determines its sweepstake points value:
     - 1st place: 20 points
     - 2nd place: 19 points
@@ -420,29 +493,35 @@ with st.expander("Points Assignment & Current Standings"):
     - 20th place: 1 point
     
     Each player's total is the sum of sweepstake points from their two team picks. Higher sweepstake points are better.
-    """)
-    
+    """
+    )
+
     # Show the current standings table based on fetched/fallback data
     st.subheader("Current Premier League Standings")
-    display_standings = standings_df[["Position", "Team", "Points_League", "Points_Value"]].rename(
-        columns={"Points_Value": "Sweepstake Points Worth", "Points_League": "League Points"}
+    display_standings = standings_df[
+        ["Position", "Team", "Points_League", "Points_Value"]
+    ].rename(
+        columns={
+            "Points_Value": "Sweepstake Points Worth",
+            "Points_League": "League Points",
+        }
     )
     st.dataframe(
-        display_standings.sort_values("Position"), # Ensure sorted by position
+        display_standings.sort_values("Position"),  # Ensure sorted by position
         column_config={
             "Position": st.column_config.NumberColumn(format="%d"),
             "Team": "Team",
             "League Points": st.column_config.NumberColumn(format="%d pts"),
-            "Sweepstake Points Worth": st.column_config.NumberColumn(format="%d pts")
+            "Sweepstake Points Worth": st.column_config.NumberColumn(format="%d pts"),
         },
         hide_index=True,
-        use_container_width=True
+        use_container_width=True,
     )
 
 # Display player picks and points
 st.header("Player Team Selections")
-cols = st.columns(len(picks_df['Player'].unique())) # Dynamically create columns
-players = sorted(picks_df['Player'].unique())
+cols = st.columns(len(picks_df["Player"].unique()))  # Dynamically create columns
+players = sorted(picks_df["Player"].unique())
 
 for i, player in enumerate(players):
     with cols[i]:
@@ -459,11 +538,15 @@ for i, player in enumerate(players):
 
             # Format position nicely, handle potential 0 from fillna
             pos_display = f"{int(position)}" if position > 0 else "N/A"
-            
+
             # Calculate background color based on points (higher = better)
             # Handle potential 0 points from fillna
             intensity = int(min(255, 100 + (points / 20) * 155)) if points > 0 else 100
-            bg_color = f"rgba(0, {intensity}, 0, 0.2)" if points > 0 else "rgba(128, 128, 128, 0.1)" # Grey if N/A
+            bg_color = (
+                f"rgba(0, {intensity}, 0, 0.2)"
+                if points > 0
+                else "rgba(128, 128, 128, 0.1)"
+            )  # Grey if N/A
 
             st.markdown(
                 f"""
@@ -474,7 +557,7 @@ for i, player in enumerate(players):
                     League Points: {int(league_points)}
                 </div>
                 """,
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
 
         st.markdown(f"**Total: {int(total_points)} points**")
@@ -484,24 +567,43 @@ for i, player in enumerate(players):
 st.header("Sweepstake Leaderboard")
 
 # Clean and guard data for chart rendering
-player_totals["Points_Value"] = pd.to_numeric(player_totals["Points_Value"], errors="coerce")
+player_totals["Points_Value"] = pd.to_numeric(
+    player_totals["Points_Value"], errors="coerce"
+)
 player_totals.replace([np.inf, -np.inf], np.nan, inplace=True)
-player_totals["Points_Value"].fillna(0, inplace=True)
+player_totals["Points_Value"] = player_totals["Points_Value"].fillna(0)
 
 # Skip chart if there's nothing to plot (prevents Vega-Lite Infinity warnings)
 if player_totals.empty or player_totals["Points_Value"].isna().all():
     st.info("No leaderboard data to plot yet.")
 else:
     # Create horizontal bar chart with Altair
-    chart = alt.Chart(player_totals).mark_bar().encode(
-        x=alt.X('Points_Value:Q', title='Total Sweepstake Points'),
-        y=alt.Y('Player:N', title='Player', sort='-x'),
-        color=alt.Color('Points_Value:Q', scale=alt.Scale(scheme='blues'), legend=None),
-        tooltip=['Player', alt.Tooltip('Points_Value:Q', title='Points')]
-    ).properties(
-        title='Player Rankings',
-        height=alt.Step(40)  # Adjust height based on number of players
+    chart = (
+        alt.Chart(player_totals)
+        .mark_bar()
+        .encode(
+            x=alt.X("Points_Value:Q", title="Total Sweepstake Points"),
+            y=alt.Y("Player:N", title="Player", sort="-x"),
+            color=alt.Color(
+                "Points_Value:Q", scale=alt.Scale(scheme="blues"), legend=None
+            ),
+            tooltip=["Player", alt.Tooltip("Points_Value:Q", title="Points")],
+        )
+        .properties(
+            title="Player Rankings",
+            height=alt.Step(40),  # Adjust height based on number of players
+        )
     )
+
+    # Force a domain if all zeros to avoid Vega "Infinite extent" warnings
+    if player_totals["Points_Value"].max() == 0:
+        chart = chart.encode(
+            x=alt.X(
+                "Points_Value:Q",
+                title="Total Sweepstake Points",
+                scale=alt.Scale(domain=[0, 1]),
+            )
+        )
 
     st.altair_chart(chart, use_container_width=True)
 
@@ -509,8 +611,10 @@ else:
 st.subheader("Current Standings")
 leaderboard_df = player_totals.copy()
 # Handle ties in rank
-leaderboard_df['Rank'] = leaderboard_df['Points_Value'].rank(method='min', ascending=False).astype(int)
-leaderboard_df = leaderboard_df.sort_values('Rank')
+leaderboard_df["Rank"] = (
+    leaderboard_df["Points_Value"].rank(method="min", ascending=False).astype(int)
+)
+leaderboard_df = leaderboard_df.sort_values("Rank")
 leaderboard_df = leaderboard_df[["Rank", "Player", "Points_Value"]]
 leaderboard_df.rename(columns={"Points_Value": "Total Points"}, inplace=True)
 
@@ -519,25 +623,31 @@ st.dataframe(
     column_config={
         "Rank": st.column_config.NumberColumn(format="%d"),
         "Player": "Player",
-        "Total Points": st.column_config.NumberColumn(format="%d")
+        "Total Points": st.column_config.NumberColumn(format="%d"),
     },
     hide_index=True,
-    use_container_width=True
+    use_container_width=True,
 )
 
 # Highlight leaders
 if not player_totals.empty:
-    max_points = player_totals['Points_Value'].max()
-    leaders = player_totals[player_totals["Points_Value"] == max_points]["Player"].tolist()
+    max_points = player_totals["Points_Value"].max()
+    leaders = player_totals[player_totals["Points_Value"] == max_points][
+        "Player"
+    ].tolist()
     leaders_text = " and ".join(leaders)
-    st.write(f"### 🏆 Current Leader{'s' if len(leaders) > 1 else ''}: {leaders_text} ({int(max_points)} points)")
+    st.write(
+        f"### 🏆 Current Leader{'s' if len(leaders) > 1 else ''}: {leaders_text} ({int(max_points)} points)"
+    )
 else:
     st.write("Leaderboard data is currently unavailable.")
 
 
 # Add what-if scenario option
 st.header("What-If Scenario Builder")
-st.write("See how the standings would change if teams moved positions (based on currently loaded standings)")
+st.write(
+    "See how the standings would change if teams moved positions (based on currently loaded standings)"
+)
 
 # Create columns for team movement
 team_columns = st.columns(2)
@@ -547,11 +657,13 @@ player_teams = sorted(picks_df["Team"].unique())
 
 # Store modified positions
 modified_positions = {}
-current_positions_map = pd.Series(standings_df.Position.values, index=standings_df.Team).to_dict()
+current_positions_map = pd.Series(
+    standings_df.Position.values, index=standings_df.Team
+).to_dict()
 
 # Chunk teams for columns
 num_teams = len(player_teams)
-mid_point = (num_teams + 1) // 2 # Split roughly in half
+mid_point = (num_teams + 1) // 2  # Split roughly in half
 
 # First column of teams
 with team_columns[0]:
@@ -563,9 +675,9 @@ with team_columns[0]:
             f"{team} new position:",
             min_value=1,
             max_value=20,
-            value=int(current_pos), # Ensure value is int
+            value=int(current_pos),  # Ensure value is int
             key=f"pos_{team}",
-            step=1
+            step=1,
         )
 
 # Second column of teams
@@ -577,9 +689,9 @@ with team_columns[1]:
             f"{team} new position:",
             min_value=1,
             max_value=20,
-            value=int(current_pos), # Ensure value is int
+            value=int(current_pos),  # Ensure value is int
             key=f"pos_{team}",
-            step=1
+            step=1,
         )
 
 # Calculate button
@@ -595,97 +707,140 @@ if st.button("Calculate New Standings"):
         conflict_messages = []
         for pos, count in conflicts.items():
             teams_at_pos = [t for t, p in modified_positions.items() if p == pos]
-            conflict_messages.append(f"Position {pos} assigned to {count} teams: {', '.join(teams_at_pos)}")
+            conflict_messages.append(
+                f"Position {pos} assigned to {count} teams: {', '.join(teams_at_pos)}"
+            )
 
         st.error(f"⚠️ Position conflicts detected:\n" + "\n".join(conflict_messages))
-        st.warning("Please ensure each position is assigned to only one selected team in the builder.")
+        st.warning(
+            "Please ensure each position is assigned to only one selected team in the builder."
+        )
     else:
         # Create a new dataframe based on the *currently loaded* standings
         new_standings = standings_df.copy()
 
         # Update positions only for the teams included in the builder
         for team, new_pos in modified_positions.items():
-            if team in new_standings['Team'].values:
-                 new_standings.loc[new_standings["Team"] == team, "Position"] = new_pos
+            if team in new_standings["Team"].values:
+                new_standings.loc[new_standings["Team"] == team, "Position"] = new_pos
             else:
-                st.warning(f"Team '{team}' selected in 'What-If' not found in current standings, ignoring.")
+                st.warning(
+                    f"Team '{team}' selected in 'What-If' not found in current standings, ignoring."
+                )
 
         st.subheader("Hypothetical Player Scores (What-If)")
-        st.caption("Calculated based ONLY on the new positions entered above. Other teams' positions are assumed unchanged for this calculation.")
+        st.caption(
+            "Calculated based ONLY on the new positions entered above. Other teams' positions are assumed unchanged for this calculation."
+        )
 
         # Recalculate points values based on *hypothetical* positions
-        hypothetical_points = {team: 21 - pos for team, pos in modified_positions.items()}
+        hypothetical_points = {
+            team: 21 - pos for team, pos in modified_positions.items()
+        }
 
         # Calculate new player totals based on these hypothetical points
         new_player_totals_list = []
-        for player in picks_df['Player'].unique():
-            player_teams_list = picks_df[picks_df['Player'] == player]['Team'].tolist()
+        for player in picks_df["Player"].unique():
+            player_teams_list = picks_df[picks_df["Player"] == player]["Team"].tolist()
             new_total = 0
             for team in player_teams_list:
                 # Use the hypothetical point value if the team was modified
                 if team in hypothetical_points:
                     new_total += hypothetical_points[team]
                 # Otherwise, use the original point value from the loaded standings
-                elif team in merged_df['Team'].values:
-                     # Get original points value for teams not in the what-if builder
-                     original_points = merged_df.loc[merged_df['Team'] == team, 'Points_Value'].iloc[0]
-                     new_total += original_points
+                elif team in merged_df["Team"].values:
+                    # Get original points value for teams not in the what-if builder
+                    original_points = merged_df.loc[
+                        merged_df["Team"] == team, "Points_Value"
+                    ].iloc[0]
+                    new_total += original_points
                 else:
-                    new_total += 0 # Team not found in original merge either
+                    new_total += 0  # Team not found in original merge either
 
             new_player_totals_list.append({"Player": player, "Points_Value": new_total})
 
         new_player_totals = pd.DataFrame(new_player_totals_list)
-        new_player_totals = new_player_totals.sort_values("Points_Value", ascending=False)
+        new_player_totals = new_player_totals.sort_values(
+            "Points_Value", ascending=False
+        )
 
         # Clean and guard data for chart rendering
-        new_player_totals["Points_Value"] = pd.to_numeric(new_player_totals["Points_Value"], errors="coerce")
+        new_player_totals["Points_Value"] = pd.to_numeric(
+            new_player_totals["Points_Value"], errors="coerce"
+        )
         new_player_totals.replace([np.inf, -np.inf], np.nan, inplace=True)
-        new_player_totals["Points_Value"].fillna(0, inplace=True)
+        new_player_totals["Points_Value"] = new_player_totals["Points_Value"].fillna(0)
 
         if new_player_totals.empty or new_player_totals["Points_Value"].isna().all():
             st.info("No hypothetical data to plot.")
         else:
             # Display new leaderboard chart
-            new_chart = alt.Chart(new_player_totals).mark_bar().encode(
-                x=alt.X('Points_Value:Q', title='Total Points (Hypothetical)'),
-                y=alt.Y('Player:N', title='Player', sort='-x'),
-                color=alt.Color('Points_Value:Q', scale=alt.Scale(scheme='greens'), legend=None),
-                tooltip=['Player', alt.Tooltip('Points_Value:Q', title='Points')]
-            ).properties(
-                title='Hypothetical Player Rankings',
-                height=alt.Step(40)
+            new_chart = (
+                alt.Chart(new_player_totals)
+                .mark_bar()
+                .encode(
+                    x=alt.X("Points_Value:Q", title="Total Points (Hypothetical)"),
+                    y=alt.Y("Player:N", title="Player", sort="-x"),
+                    color=alt.Color(
+                        "Points_Value:Q", scale=alt.Scale(scheme="greens"), legend=None
+                    ),
+                    tooltip=["Player", alt.Tooltip("Points_Value:Q", title="Points")],
+                )
+                .properties(title="Hypothetical Player Rankings", height=alt.Step(40))
             )
+
+            # Force a domain if all zeros to avoid Vega "Infinite extent" warnings
+            if new_player_totals["Points_Value"].max() == 0:
+                new_chart = new_chart.encode(
+                    x=alt.X(
+                        "Points_Value:Q",
+                        title="Total Points (Hypothetical)",
+                        scale=alt.Scale(domain=[0, 1]),
+                    )
+                )
+
             st.altair_chart(new_chart, use_container_width=True)
 
         # Display new leaderboard table
         new_leaderboard_df = new_player_totals.copy()
-        new_leaderboard_df['Rank'] = new_leaderboard_df['Points_Value'].rank(method='min', ascending=False).astype(int)
-        new_leaderboard_df = new_leaderboard_df.sort_values('Rank')
+        new_leaderboard_df["Rank"] = (
+            new_leaderboard_df["Points_Value"]
+            .rank(method="min", ascending=False)
+            .astype(int)
+        )
+        new_leaderboard_df = new_leaderboard_df.sort_values("Rank")
         new_leaderboard_df = new_leaderboard_df[["Rank", "Player", "Points_Value"]]
-        new_leaderboard_df.rename(columns={"Points_Value": "Total Points"}, inplace=True)
+        new_leaderboard_df.rename(
+            columns={"Points_Value": "Total Points"}, inplace=True
+        )
 
         st.dataframe(
             new_leaderboard_df,
             column_config={
                 "Rank": st.column_config.NumberColumn(format="%d"),
                 "Player": "Player",
-                "Total Points": st.column_config.NumberColumn(format="%d")
+                "Total Points": st.column_config.NumberColumn(format="%d"),
             },
             hide_index=True,
-            use_container_width=True
+            use_container_width=True,
         )
 
         # Highlight new leaders
         if not new_player_totals.empty:
-            new_max_points = new_player_totals['Points_Value'].max()
-            new_leaders = new_player_totals[new_player_totals["Points_Value"] == new_max_points]["Player"].tolist()
+            new_max_points = new_player_totals["Points_Value"].max()
+            new_leaders = new_player_totals[
+                new_player_totals["Points_Value"] == new_max_points
+            ]["Player"].tolist()
             new_leaders_text = " and ".join(new_leaders)
-            st.write(f"### 🏆 Hypothetical Leader{'s' if len(new_leaders) > 1 else ''}: {new_leaders_text} ({int(new_max_points)} points)")
+            st.write(
+                f"### 🏆 Hypothetical Leader{'s' if len(new_leaders) > 1 else ''}: {new_leaders_text} ({int(new_max_points)} points)"
+            )
         else:
             st.write("Hypothetical leaderboard data is currently unavailable.")
 
 
 # Add a footer
 st.markdown("---")
-st.caption(f"Bottoms Sweepstake {SEASON_LABEL} Season | Made with Streamlit | Data via premierleague.com | Last updated: {current_time}")
+st.caption(
+    f"Bottoms Sweepstake {SEASON_LABEL} Season | Made with Streamlit | Data via premierleague.com | Last updated: {current_time}"
+)

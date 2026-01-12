@@ -5,7 +5,7 @@ A Streamlit application for tracking a Premier League "Bottoms Sweepstake" for t
 ## About the Sweepstake
 
 A friendly competition with the following rules:
-- 5 Participants: Sean, Dom, Harry, Chris, Adam.
+- 6 Participants: Vosey, Dom, Chris, Sam, Adam, Sean.
 - Each player is assigned two teams (see below).
 - **Scoring:** Points are awarded based on the *inverse* of the final Premier League position. The team finishing 1st gets 20 points, 2nd gets 19 points, ..., down to 20th place getting 1 point.
 - Each player's score is the sum of the points from their two assigned teams.
@@ -13,7 +13,7 @@ A friendly competition with the following rules:
 
 ## Features
 
-- **Live Standings Tracker**: Fetches current Premier League standings from premierleague.com (with a 30-minute cache) and calculates player scores based on the inverse position points system. Includes fallback static data if scraping fails.
+- **Live Standings Tracker**: Fetches current Premier League standings from the Pulse Live API (used by premierleague.com) and calculates player scores based on the inverse position points system. Includes fallback static data if fetching fails.
 - **Visual Leaderboard**: Interactive bar chart showing player rankings based on their current total points.
 - **Team Selection Cards**: Visual display of each player's team picks with current league position, league points, and calculated sweepstake points.
 - **What-If Scenario Builder**: Simulate how changing the positions of the selected teams would affect the *sweepstake points* and the overall leaderboard (note: this only recalculates points for the selected teams, it doesn't simulate the full league table).
@@ -50,19 +50,20 @@ A friendly competition with the following rules:
 
 | Player | Team Picks                      |
 | :----- | :------------------------------ |
-| Sean   | Fulham, Everton                 |
-| Dom    | Bournemouth, Ipswich Town       |
-| Harry  | Nottingham Forest, Wolverhampton Wanderers |
-| Chris  | Brentford, Leicester City         |
-| Adam   | Brighton & Hove Albion, Southampton |
+| Vosey  | Bournemouth, Leeds United       |
+| Dom    | Brentford, Sunderland           |
+| Chris  | Wolverhampton Wanderers, Fulham |
+| Sam    | Burnley, Tottenham Hotspur      |
+| Adam   | West Ham United, Manchester United |
+| Sean   | Everton, Crystal Palace         |
 
-*Note: Team names must match the official long names used on premierleague.com for correct data merging.*
+*Note: Team names must match the official long names used by the data source for correct data merging.*
 
 ## Data Source
 
-The application attempts to scrape live league standings from `https://www.premierleague.com/tables`.
+The application attempts to fetch live league standings from the Pulse Live API (`footballapi.pulselive.com`), which powers the official Premier League website.
 
-**Disclaimer:** Web scraping relies on the structure of the source website. If the Premier League website changes its HTML layout, the scraping function may break. The application includes fallback static data from April 2025, but for truly live data, the scraping function needs to work.
+**Disclaimer:** This relies on public API endpoints. If the API structure changes, the fetching function may break. The application includes fallback static data, but for live updates, the API connection must be working.
 
 ## Customization
 
@@ -73,9 +74,7 @@ Edit the `get_player_picks()` function in `bottoms_sweepstake.py`. **Ensure team
 ```python
 def get_player_picks():
     return pd.DataFrame({
-        "Player": ["Sean", "Sean", "Dom", "Dom", "Harry", "Harry", "Chris", "Chris", "Adam", "Adam"],
-        "Team": ["Fulham", "Everton", "Bournemouth", "Ipswich Town",
-                 "Nottingham Forest", "Wolverhampton Wanderers",
-                 "Brentford", "Leicester City",
-                 "Brighton & Hove Albion", "Southampton"]
+        "Player": ["Vosey", "Vosey", "Dom", "Dom", ...],
+        "Team": ["Bournemouth", "Leeds United", "Brentford", "Sunderland", ...]
     })
+```
