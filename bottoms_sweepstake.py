@@ -20,21 +20,49 @@ BANTER_PHRASES = {
         "{0} is drinking it in. Long. Hard. Deep.",
         "Gary Neville is currently groaning at how good {0} is. 😩",
         "Prime Barcelona vibes from {0}. Tiki-taka merchants.",
+        "The title charge is ON for {0}. All gas no brakes.",
+        "{0} is cooking. Let them cook. 👨‍🍳",
+        "Unstoppable force meets immovable object? No, it's just {0}.",
+        "{0}'s xG is through the roof. Clinical.",
+        "Has {0} signed Haaland in secret? Unbelievable form.",
     ],
     "loser": [
-        "{0} mate, you've absolutely bottled it. 🍾",
-        "Proper Sunday League stuff from {0}. Get in the bin.",
-        "{0} couldn't hit a barn door with a banjo. 📉",
-        "Enjoy Millwall away you mug. {0} is down.",
-        "{0} is holding the Wooden Spoon. Cheers Geoff. 🥄",
+        "{5} mate, you've absolutely bottled it. 🍾",
+        "Proper Sunday League stuff from {5}. Get in the bin.",
+        "{5} couldn't hit a barn door with a banjo. 📉",
+        "Enjoy Millwall away you mug. {5} is down.",
+        "{5} is holding the Wooden Spoon. Cheers Geoff. 🥄",
         "Even Big Sam couldn't save {5} from this wreck.",
-        "{2} is currently in the mud. Absolute shambles.",
-        "Fraudiola has nothing on the fraudulence of {2}.",
-        "I prefer not to speak about {3}. If I speak, I am in big trouble.",
+        "{5} is currently in the mud. Absolute shambles.",
+        "Fraudiola has nothing on the fraudulence of {5}.",
+        "I prefer not to speak about {5}. If I speak, I am in big trouble.",
+        "Taxi for {5}! 🚕",
+        "It's the hope that kills you, {5}.",
+        "Hello darkness my old friend... {5} is here again.",
+        "{5}'s defense has more holes than a sieve.",
+        "Relegation battle? {5} is already down.",
+        "Someone check on {5}, they're having a mare.",
     ],
     "generic": [
         "Game's gone. Soft penalties everywhere.",
         "Can they do it on a cold rainy night in Stoke?",
+        "Ref needs Specsavers. 👓",
+        "VAR checking... still checking... Good ebening. 🖥️",
+        "Unbelievable Jeff!",
+        "Chat shit, get banged. 🦊",
+        "Prawn sandwich brigade out in force today. 🍤",
+        "Meat pie, sausage roll, come on {5}, give us a goal!",
+        "Back in my day you could tackle. Game's gone soft.",
+        "Bald fraud detected.",
+        "Farmers league performance.",
+        "Corner taken quickly... ORIGI!",
+        "Why always me? - {0}",
+        "The Special One has nothing on this drama.",
+        "Sometimes maybe good, sometimes maybe sh*t. 🤷‍♂️",
+        "No era penal!",
+        "Aguerroooooooo! (But for sweeps)",
+        "Dreams can't be buy.",
+        "Streets won't forget this season.",
         "Ref needs Specsavers. 👓",
         "VAR checking... still checking... Good ebening. 🖥️",
         "Unbelievable Jeff!",
@@ -44,6 +72,18 @@ BANTER_PHRASES = {
         "Back in my day you could tackle. Game's gone soft.",
         "Bald fraud detected.",
         "Farmers league performance.",
+        "Park, Park, wherever you may be...",
+        "Pogba should have done more in my opinion: Graeme Souness",
+        "{5}, give it Giggsy 'til the end of the season!",
+        "Whichever team scores more goals usually wins. - Michael Owen 🧠",
+        "When they don't score, they hardly ever win. - Michael Owen",
+        "If there's a bit of rain about, it makes the surface wet. - Michael Owen",
+        "Listen, Man United might not thank me but get the contract out, put it on the table. Let him sign it",
+        "{0}'s at the wheel, man. He's doing it. Man United are BACK. *rubs hands*",
+        "You just have to sit there and appreciate greatness.",
+        "I threw an apple core into the bin from a distance. It went in. That daring gave me confidence 🍏",
+        "Ballon d'Or! Ballon d'Or! Ballon d'Or! - Rio",
+        "Bit of respect between these two {4} and {5}. 🤝",
     ]
 }
 
@@ -90,24 +130,34 @@ def get_banter(sorted_players):
 
     r = random.random()
     try:
+        # NOTE: sorted_players[0] is Leader, sorted_players[-1] (or 5) is Loser.
+        # Ensure phrases in the dictionary use {0} for leader targeting
+        # and {5} (or whatever len-1 is) for loser targeting.
+        
+        # We'll use len(sorted_players)-1 for the loser index dynamically if needed, 
+        # but the specific user request asked for phrases targeting positions.
+        # The strings in BANTER_PHRASES['loser'] must use indices pointing to the bottom.
+        
         if r < 0.4:
-            # Leader banter
-            return random.choice(BANTER_PHRASES["leader"]).format(*sorted_players)
+            # Leader banter: Pick a phrase, but verify it likely targets the leader {0}
+            msg = random.choice(BANTER_PHRASES["leader"])
+            return msg.format(*sorted_players)
+            
         elif r < 0.8:
-            # Loser banter
-            return random.choice(BANTER_PHRASES["loser"]).format(*sorted_players)
+            # Loser banter: The user wants "Position appropriate".
+            # The strings in 'loser' dict NOW use {5} (last place).
+            # We must pass the list so {5} resolves to the 6th player.
+            msg = random.choice(BANTER_PHRASES["loser"])
+            return msg.format(*sorted_players)
+            
         else:
             # Generic/Mid-table banter
             phrase = random.choice(BANTER_PHRASES["generic"])
+            if "{" in phrase:
+                 return phrase.format(*sorted_players)
+            return phrase
             
-            # If the phrase has no placeholders, just return it
-            if "{" not in phrase:
-                return phrase
-                
-            # If it has placeholders like {3} (specific rank), format with all players
-            return phrase.format(*sorted_players)
     except IndexError:
-        # Fallback if a phrase references {5} but there are fewer players
         return "The banter generator is confused. Just like VAR."
 
 
