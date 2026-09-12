@@ -356,7 +356,7 @@ class TestUi(unittest.TestCase):
         self.assertEqual(ui.rank_label(2, False), "2")
 
     def test_player_image_falls_back_to_avatar(self):
-        self.assertTrue(ui.player_image("Wilson").startswith("data:image/svg+xml"))
+        self.assertTrue(ui.player_image("Nobody").startswith("data:image/svg+xml"))
         self.assertTrue(ui.player_image("Dom").startswith("data:image/png;base64,"))
 
     def test_components_escape_and_render(self):
