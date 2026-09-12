@@ -6,6 +6,7 @@ All logic lives in the ``sweepstake`` package; this file is the page.
 
 from __future__ import annotations
 
+import inspect
 import os
 
 import altair as alt
@@ -17,13 +18,32 @@ from sweepstake.data import StandingsResult, get_standings
 
 TOTAL_MATCHWEEKS = 38
 BANTER_MEMORY = 12  # templates to avoid repeating within a session
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+FAVICON = os.path.join(APP_DIR, "assets", "favicon.png")
+
+
+def stretch(fn) -> dict:
+    """Keyword arguments that make ``fn``'s element fill its container.
+
+    Streamlit renamed ``use_container_width=True`` to ``width="stretch"`` and later
+    removed the old name, so pick whichever the installed version accepts.
+    """
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return {}
+    if "width" in params:
+        return {"width": "stretch"}
+    if "use_container_width" in params:
+        return {"use_container_width": True}
+    return {}
 
 # --------------------------------------------------------------------------- #
 # Page setup
 # --------------------------------------------------------------------------- #
 st.set_page_config(
     page_title=f"Bottoms Sweepstake · Gen {config.GENERATION} · {config.SEASON_LABEL}",
-    page_icon="⚽",
+    page_icon=FAVICON if os.path.exists(FAVICON) else "⚽",
     layout="wide",
     initial_sidebar_state="collapsed",
     menu_items={
@@ -203,7 +223,7 @@ if "banter" not in st.session_state:
 # --------------------------------------------------------------------------- #
 with st.sidebar:
     st.markdown("### Controls")
-    if st.button("Refresh table", use_container_width=True, help="Clear the cache and refetch"):
+    if st.button("Refresh table", help="Clear the cache and refetch", **stretch(st.button)):
         refresh_data()
     st.caption(
         f"**Source:** {SOURCE_DETAILS[result.source]}  \n"
@@ -217,7 +237,7 @@ with st.sidebar:
     with st.form("headshot_form", clear_on_submit=True):
         selected_player = st.selectbox("Player", players)
         uploaded = st.file_uploader("Image", type=["png", "jpg", "jpeg"])
-        submitted = st.form_submit_button("Save headshot", use_container_width=True)
+        submitted = st.form_submit_button("Save headshot", **stretch(st.form_submit_button))
     if submitted:
         if uploaded is None:
             st.warning("Choose an image first.")
@@ -249,13 +269,13 @@ st.html(
 
 action_refresh, action_banter, action_party, _ = st.columns([1, 1, 1, 2.5])
 with action_refresh:
-    if st.button("Refresh", use_container_width=True, help="Refetch the league table"):
+    if st.button("Refresh", help="Refetch the league table", **stretch(st.button)):
         refresh_data()
 with action_banter:
-    if st.button("New banter", use_container_width=True, help="Roll a fresh line"):
+    if st.button("New banter", help="Roll a fresh line", **stretch(st.button)):
         new_banter()
 with action_party:
-    if st.button("Celebrate", use_container_width=True, help="Balloons for the leader"):
+    if st.button("Celebrate", help="Balloons for the leader", **stretch(st.button)):
         st.balloons()
 
 if result.message:
@@ -322,7 +342,7 @@ with tab_board:
         st.html(ui.leaderboard_html(player_views))
     with col_chart:
         st.html(ui.head_html("Points"))
-        st.altair_chart(leaderboard_chart(ranked), use_container_width=True, theme=None)
+        st.altair_chart(leaderboard_chart(ranked), theme=None, **stretch(st.altair_chart))
 
 with tab_squads:
     st.html(ui.head_html("Squads", "position, league points, form and next fixture for each club"))
