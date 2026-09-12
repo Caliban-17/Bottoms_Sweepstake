@@ -24,7 +24,7 @@ A Streamlit dashboard for the Premier League "Bottoms Sweepstake", now in its th
 
 | Gen | Season  | Winner        | Wooden spoon           |
 | :-- | :------ | :------------ | :--------------------- |
-| 1   | 2024/25 | Harry (19)    | Dom, Chris, Adam (14=) |
+| 1   | 2024/25 | Vosey (19)    | Dom, Chris, Adam (14=) |
 | 2   | 2025/26 | Dom (26)      | Sam (6)                |
 
 Results are computed in-app from each season's final table and the picks recorded in this repo's history.

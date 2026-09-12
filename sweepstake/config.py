@@ -137,7 +137,7 @@ PREVIOUS_GENERATIONS: list[dict] = [
         "picks": {
             "Sean": (("Fulham", 11), ("Everton", 13)),
             "Dom": (("Bournemouth", 9), ("Ipswich Town", 19)),
-            "Harry": (("Nottingham Forest", 7), ("Wolverhampton Wanderers", 16)),
+            "Vosey": (("Nottingham Forest", 7), ("Wolverhampton Wanderers", 16)),  # played as "Harry" in Gen 1
             "Chris": (("Brentford", 10), ("Leicester City", 18)),
             "Adam": (("Brighton & Hove Albion", 8), ("Southampton", 20)),
         },

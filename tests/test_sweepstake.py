@@ -81,7 +81,7 @@ class TestScoring(unittest.TestCase):
     def test_hall_of_fame_results(self):
         gen1, gen2 = config.PREVIOUS_GENERATIONS
         results1 = scoring.generation_results(gen1)
-        self.assertEqual(results1[0]["player"], "Harry")
+        self.assertEqual(results1[0]["player"], "Vosey")
         self.assertEqual(results1[0]["points"], 19)
         self.assertEqual(results1[1]["player"], "Sean")
         self.assertEqual(results1[1]["points"], 18)
