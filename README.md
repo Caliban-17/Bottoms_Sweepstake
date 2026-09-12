@@ -1,80 +1,84 @@
-# Premier League Bottoms Sweepstake
+# Bottoms Sweepstake · Gen 3
 
-A Streamlit application for tracking a Premier League "Bottoms Sweepstake" for the 24/25 season.
+A Streamlit dashboard for the Premier League "Bottoms Sweepstake", now in its third generation for the **2026/27** season.
 
-## About the Sweepstake
+## The sweepstake
 
-A friendly competition with the following rules:
-- 6 Participants: Vosey, Dom, Chris, Sam, Adam, Sean.
-- Each player is assigned two teams (see below).
-- **Scoring:** Points are awarded based on the *inverse* of the final Premier League position. The team finishing 1st gets 20 points, 2nd gets 19 points, ..., down to 20th place getting 1 point.
-- Each player's score is the sum of the points from their two assigned teams.
-- The player with the **most points** at the end of the season wins the £25 jackpot! 🤑
+- Six players, each drawn two Premier League clubs.
+- At the end of the season every club is worth its finishing position in reverse: 1st = 20 points, 2nd = 19, … 20th = 1.
+- A player's score is the sum of their two clubs. Highest score wins the pot; lowest gets the wooden spoon.
+- Stake is £5 each, so the Gen 3 pot is **£30**.
 
-## Features
+### Gen 3 roster (2026/27)
 
-- **Live Standings Tracker**: Fetches current Premier League standings from the Pulse Live API (used by premierleague.com) and calculates player scores based on the inverse position points system. Includes fallback static data if fetching fails.
-- **Visual Leaderboard**: Interactive bar chart showing player rankings based on their current total points.
-- **Team Selection Cards**: Visual display of each player's team picks with current league position, league points, and calculated sweepstake points.
-- **What-If Scenario Builder**: Simulate how changing the positions of the selected teams would affect the *sweepstake points* and the overall leaderboard (note: this only recalculates points for the selected teams, it doesn't simulate the full league table).
-- **Responsive Design**: Works on desktop and mobile devices.
+| Player | Clubs                              |
+| :----- | :--------------------------------- |
+| Sean   | Hull City, Chelsea                 |
+| Vosey  | Tottenham Hotspur, Ipswich Town    |
+| Dom    | Newcastle United, Coventry City    |
+| Adam   | Brentford, Everton                 |
+| Sam    | Leeds United, Fulham               |
+| Wilson | Crystal Palace, Nottingham Forest  |
 
-## Getting Started
+### Hall of Fame
 
-### Prerequisites
+| Gen | Season  | Winner        | Wooden spoon           |
+| :-- | :------ | :------------ | :--------------------- |
+| 1   | 2024/25 | Harry (19)    | Dom, Chris, Adam (14=) |
+| 2   | 2025/26 | Dom (26)      | Sam (6)                |
 
-- Python 3.7+
-- pip (Python package installer)
+Results are computed in-app from each season's final table and the picks recorded in this repo's history.
 
-### Installation
+## What the app shows
 
-1.  Clone this repository:
-    ```bash
-    git clone https://github.com/yourusername/bottoms-sweepstake.git # Replace with your actual repo URL
-    cd bottoms-sweepstake
-    ```
+- **Header** with data status (live / pre-season / offline snapshot), matchweek and fetch time.
+- **Summary strip**: current leader, wooden spoon, matchweek and prize pot.
+- **BanterBot**: dressing-room abuse built from the live table. Lines know who leads and by how much, who holds the spoon, which clubs are on a losing run or in the bottom three, who dropped this week, and who won last season, so only lines that fit the situation get used.
+- **Leaderboard**: ranked list with each player's clubs and current positions, plus a points chart.
+- **Squads**: a card per player with each club's position, movement this matchweek, league points, sweepstake value, recent form and next fixture.
+- **League table**: the full Premier League table with owners highlighted, qualification and relegation zones, form and sweepstake value.
+- **Rules & history**: the points ladder and the final standings of previous generations.
+- **Sidebar**: refresh the table and upload player headshots.
 
-2.  Install the required packages:
-    ```bash
-    pip install -r requirements.txt
-    ```
+## Running it
 
-3.  Run the application:
-    ```bash
-    streamlit run bottoms_sweepstake.py
-    ```
-
-4.  Open your web browser and navigate to the local URL provided by Streamlit (usually http://localhost:8501).
-
-## Current Player Selections
-
-| Player | Team Picks                      |
-| :----- | :------------------------------ |
-| Vosey  | Bournemouth, Leeds United       |
-| Dom    | Brentford, Sunderland           |
-| Chris  | Wolverhampton Wanderers, Fulham |
-| Sam    | Burnley, Tottenham Hotspur      |
-| Adam   | West Ham United, Manchester United |
-| Sean   | Everton, Crystal Palace         |
-
-*Note: Team names must match the official long names used by the data source for correct data merging.*
-
-## Data Source
-
-The application attempts to fetch live league standings from the Pulse Live API (`footballapi.pulselive.com`), which powers the official Premier League website.
-
-**Disclaimer:** This relies on public API endpoints. If the API structure changes, the fetching function may break. The application includes fallback static data, but for live updates, the API connection must be working.
-
-## Customization
-
-### Modifying Player Picks
-
-Edit the `get_player_picks()` function in `bottoms_sweepstake.py`. **Ensure team names exactly match the long names found on premierleague.com.**
-
-```python
-def get_player_picks():
-    return pd.DataFrame({
-        "Player": ["Vosey", "Vosey", "Dom", "Dom", ...],
-        "Team": ["Bournemouth", "Leeds United", "Brentford", "Sunderland", ...]
-    })
+```bash
+pip install -r requirements.txt
+streamlit run bottoms_sweepstake.py
 ```
+
+Then open the URL Streamlit prints (usually http://localhost:8501).
+
+Tests:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+## Data
+
+Standings come from the Premier League's public data service (`footballapi.pulselive.com`), the same feed that powers premierleague.com. The table is cached for 30 minutes; use the refresh button to refetch.
+
+If the service can't be reached the app shows an offline snapshot of the table and says so in the header. Crest images are served from premierleague.com using each club's Opta id, which the API supplies; a small map in `sweepstake/config.py` backs the offline snapshot.
+
+## Project layout
+
+```
+bottoms_sweepstake.py   Streamlit page (layout and wiring only)
+sweepstake/
+  config.py             season, roster, crest ids, previous generations
+  scoring.py            points, ranking, hall-of-fame results
+  data.py               API client, payload parsing, offline snapshot
+  banter.py             BanterBot context builder and lines
+  ui.py                 CSS and HTML component builders
+assets/headshots/       player images (<Player>.png / .jpg)
+tests/                  unit tests plus a saved API payload fixture
+.streamlit/config.toml  dark Premier League theme
+```
+
+## New season checklist
+
+1. Update `SEASON_LABEL`, `GENERATION` and `PLAYER_PICKS` in `sweepstake/config.py`. Team names must match the long names used on premierleague.com (for example "Tottenham Hotspur", "Nottingham Forest").
+2. Add the finished season to `PREVIOUS_GENERATIONS` with each club's final position.
+3. Add crests for any newly promoted club to `OPTA_ID_MAP` (only needed for the offline snapshot; the live feed supplies ids).
+4. Drop a headshot for any new player into `assets/headshots/`, or upload one from the sidebar.
